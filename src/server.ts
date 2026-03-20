@@ -8,13 +8,6 @@ import { auth } from './utils/auth';
 import { isAPIError } from 'better-auth/api';
 
 // Importação das rotas
-import userRouter from './routes/userRoutes';
-import serviceRouter from './routes/serviceRoutes';
-import apiKeyRouter from './routes/apiKeyRoutes';
-
-const userRoutes = userRouter;
-const serviceRoutes = serviceRouter;
-const apiKeyRoutes = apiKeyRouter;
 
 dotenv.config({ quiet: true });
 
@@ -82,9 +75,6 @@ app.get('/api/health', (req, res) => {
 });
 
 // Rotas de recursos
-app.use('/api', userRoutes);
-app.use('/api', serviceRoutes);
-app.use('/api', apiKeyRoutes);
 
 function showWelcomeBanner() {
 	const version = ''; // Você pode puxar isso do package.json depois se quiser
