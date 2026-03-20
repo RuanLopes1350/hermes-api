@@ -1,0 +1,49 @@
+====================================================================
+           LEGENDA DE LOGS DO SISTEMA (PADRÃO CHALK)
+====================================================================
+
+ESTRUTURA PADRÃO DO LOG:
+[HH:MM:SS] [TAG] Contexto/Mensagem - Dados Adicionais (opcional)
+
+--------------------------------------------------------------------
+1. NÍVEIS DE SEVERIDADE E AVISOS
+--------------------------------------------------------------------
+[ERROR]   Cor: Vermelho Negrito (chalk.red.bold)
+          Uso: Erros críticos que interrompem o fluxo (ex: falhas de 
+          conexão, exceções não tratadas, status 500).
+
+[WARN]    Cor: Amarelo Negrito (chalk.yellow.bold)
+          Uso: Alertas de situações anormais que não quebram a API 
+          (ex: senha incorreta, uso de funções depreciadas, retries).
+
+[INFO]    Cor: Azul ou Ciano (chalk.blue.bold / chalk.cyan.bold)
+          Uso: Mudanças de estado do sistema e informações gerais 
+          (ex: servidor iniciado na porta 3000, serviços carregados).
+
+[SUCCESS] Cor: Verde Negrito (chalk.green.bold)
+          Uso: Operações vitais concluídas com êxito (ex: conexão 
+          estabelecida, registros criados, migrações finalizadas).
+
+--------------------------------------------------------------------
+2. CONTEXTOS ESPECÍFICOS (DESENVOLVIMENTO)
+--------------------------------------------------------------------
+[DB]      Cor: Magenta/Roxo (chalk.magenta.bold)
+          Uso: Execução de queries, sincronização de modelos e 
+          operações diretas de leitura/escrita no banco de dados.
+
+[DEBUG]   Cor: Cinza (chalk.gray)
+          Uso: Inspeção profunda de código. Exibição de payloads de 
+          requisição, variáveis temporárias e rastreamento passo a 
+          passo. Deve ser facilmente ignorável visualmente.
+
+--------------------------------------------------------------------
+3. REQUISIÇÕES HTTP (ROTEAMENTO)
+--------------------------------------------------------------------
+Estrutura: [MÉTODO] /caminho/da/rota - STATUS_CODE TempoDeResposta
+
+Cores por Status Code:
+* 2xx (Sucesso)          -> Cor: Verde (chalk.green)
+* 3xx (Redirecionamento) -> Cor: Ciano (chalk.cyan)
+* 4xx (Erro do Cliente)  -> Cor: Amarelo (chalk.yellow)
+* 5xx (Erro do Servidor) -> Cor: Vermelho (chalk.red)
+====================================================================
