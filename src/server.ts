@@ -6,8 +6,10 @@ import { dbConnect } from './config/dbConfig';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from './utils/auth';
 import { isAPIError } from 'better-auth/api';
+import { errorHandler } from './middlewares/errorHandler';
 
 // Importação das rotas
+import userRouter from './routes/userRoutes';
 
 dotenv.config({ quiet: true });
 
@@ -75,6 +77,10 @@ app.get('/api/health', (req, res) => {
 });
 
 // Rotas de recursos
+app.use('/api/users', userRouter);
+
+// Middleware de tratamento de erros (deve ser o último)
+app.use(errorHandler);
 
 function showWelcomeBanner() {
 	const version = ''; // Você pode puxar isso do package.json depois se quiser
@@ -113,7 +119,9 @@ async function createAdminUser() {
 				isAdmin: true,
 			},
 		});
-		console.log(chalk.green.bold(`[${getTimestamp()}] [SUCCESS] Usuário admin criado com sucesso.`));
+		console.log(
+			chalk.green.bold(`[${getTimestamp()}] [SUCCESS] Usuário admin criado com sucesso.`),
+		);
 	} catch (error) {
 		if (isAPIError(error) && error.statusCode === 422) {
 			console.log(chalk.yellow.bold(`[${getTimestamp()}] [INFO] Usuário admin já existe.`));
