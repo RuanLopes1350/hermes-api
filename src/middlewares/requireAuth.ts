@@ -1,92 +1,96 @@
 import { Request, Response, NextFunction } from 'express';
 import { fromNodeHeaders } from 'better-auth/node';
-import { auth } from '../utils/auth';
-import CommonResponse from '../utils/helpers/commonResponse';
-import HttpStatusCode from '../utils/helpers/httpStatusCode';
+import chalk from 'chalk';
+import { auth } from '../utils/auth.js';
+import CommonResponse from '../utils/helpers/commonResponse.js';
+import HttpStatusCode from '../utils/helpers/httpStatusCode.js';
+// Se você tiver o UserType exportado em algum lugar, pode importar aqui.
+// Caso contrário, a interface abaixo resolve perfeitamente.
 
-// Extende o Request do Express para armazenar os dados de autenticação resolvidos.
+// 1. Tipagem Forte: Extende o Request do Express para o TypeScript parar de reclamar
 declare global {
 	namespace Express {
 		interface Request {
-			user?: Record<string, unknown>;
-			session?: Record<string, unknown>;
+			// Definimos explicitamente os campos que sabemos que o Better Auth devolve
+			user?: {
+				id: string;
+				name: string;
+				email: string;
+				emailVerified: boolean;
+				isAdmin: boolean | null; // Better Auth pode retornar null quando não configurado
+				image?: string | null;
+				createdAt: Date;
+				updatedAt: Date;
+			};
+			session?: {
+				id: string;
+				expiresAt: Date;
+				token: string;
+				ipAddress?: string | null;
+				userAgent?: string | null;
+				userId: string;
+			};
 		}
 	}
 }
 
-// Tenta resolver sessão usando todos os headers da requisição.
+// Tenta resolver sessão usando os headers formatados para o padrão Web
 export async function getSession(req: Request) {
 	return auth.api.getSession({
 		headers: fromNodeHeaders(req.headers),
 	});
 }
 
-// Permite tentativas de autenticação com headers específicos (fallbacks).
-async function getSessionFromHeaders(headers: HeadersInit) {
-	return auth.api.getSession({ headers });
-}
-
-// Garante que rotas protegidas só avancem com sessão válida.
+// Garante que rotas protegidas só avancem com sessão válida
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
 	try {
-		// Primeira tentativa: valida a sessão usando o conjunto completo de headers.
+		// A chamada principal com fromNodeHeaders geralmente já pega Cookies e Bearer Tokens
 		let sessionData = await getSession(req);
 
-		// Se não houver sessão, tenta alternativas por Authorization e Cookie.
+		// Fallback de segurança (sua lógica original mantida e simplificada)
 		if (!sessionData?.user || !sessionData?.session) {
-			const authorizationHeader = req.headers.authorization;
+			const authHeader = req.headers.authorization;
 			const cookieHeader = req.headers.cookie;
 
-			// Fallback 1: sessão via Authorization Bearer.
-			if (typeof authorizationHeader === 'string' && authorizationHeader.trim().length > 0) {
-				sessionData = await getSessionFromHeaders({ authorization: authorizationHeader });
-			}
-
-			// Fallback 2: sessão via Cookie, incluindo Origin quando disponível.
-			if (
-				(!sessionData?.user || !sessionData?.session) &&
-				typeof cookieHeader === 'string' &&
-				cookieHeader.trim().length > 0
-			) {
-				sessionData = await getSessionFromHeaders({
-					cookie: cookieHeader,
-					...(typeof req.headers.origin === 'string' ? { origin: req.headers.origin } : {}),
+			if (authHeader) {
+				sessionData = await auth.api.getSession({
+					headers: new Headers({ authorization: authHeader }),
 				});
+			} else if (cookieHeader) {
+				const headers = new Headers({ cookie: cookieHeader });
+				if (req.headers.origin) headers.append('origin', req.headers.origin as string);
+				sessionData = await auth.api.getSession({ headers });
 			}
 		}
 
-		// Sem sessão válida: devolve 401 e registra informações úteis para depuração.
+		// Se após as tentativas não houver sessão, bloqueia com 401
 		if (!sessionData?.user || !sessionData?.session) {
-			console.warn('[requireAuth] Sessao nao encontrada', {
-				hasAuthorizationHeader: Boolean(req.headers.authorization),
-				hasCookieHeader: Boolean(req.headers.cookie),
-				origin: req.headers.origin ?? null,
-			});
+			console.warn(chalk.yellow(`[requireAuth] Acesso negado. Rota: ${req.originalUrl}`));
 
+			// Aqui usamos return para encerrar a execução imediatamente
 			CommonResponse.error(
 				res,
 				HttpStatusCode.UNAUTHORIZED.code,
 				'UNAUTHORIZED',
 				null,
 				[],
-				'Nao autorizado. Envie Authorization: Bearer <token> valido ou cookie de sessao valido.',
+				'Não autorizado. Envie um token Bearer ou Cookie de sessão válido.',
 			);
 			return;
 		}
 
-		// Com sessão válida, injeta os dados no request para os próximos handlers.
-		req.user = sessionData.user as Record<string, unknown>;
-		req.session = sessionData.session as Record<string, unknown>;
+		// 2. Injeta os dados fortemente tipados no request para os Controllers usarem
+		req.user = {
+			...sessionData.user,
+			isAdmin: !!sessionData.user.isAdmin,
+		};
+		req.session = sessionData.session;
+
+		// Passa para o próximo middleware ou controller
 		next();
 	} catch (error) {
-		// Qualquer erro inesperado de autenticação retorna 500 padronizado.
-		CommonResponse.error(
-			res,
-			HttpStatusCode.INTERNAL_SERVER_ERROR.code,
-			'AUTH_CHECK_ERROR',
-			null,
-			[],
-			'Erro ao verificar sessao',
-		);
+		console.error(chalk.red('[requireAuth] Erro interno ao verificar sessão:'), error);
+		// 3. Deixamos o Error Handler Global lidar com o erro 500
+		next(error);
 	}
 }

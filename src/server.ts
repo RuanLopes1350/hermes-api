@@ -2,14 +2,22 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import chalk from 'chalk';
-import { dbConnect } from './config/dbConfig';
+import { dbConnect } from './config/dbConfig.js';
 import { toNodeHandler } from 'better-auth/node';
-import { auth } from './utils/auth';
+import { auth } from './utils/auth.js';
 import { isAPIError } from 'better-auth/api';
-import { errorHandler } from './middlewares/errorHandler';
+import { errorHandler } from './middlewares/errorHandler.js';
 
 // Importação das rotas
-import userRouter from './routes/userRoutes';
+import userRouter from './routes/userRoutes.js';
+import serviceRouter from './routes/serviceRoutes.js';
+import apiKeyRouter from './routes/apiKeyRoutes.js';
+import credentialRouter from './routes/credentialRoutes.js';
+import templateRouter from './routes/templateRoutes.js';
+import emailRouter from './routes/emailRoutes.js';
+import logRouter from './routes/logRoutes.js';
+import { startApiKeyRotationJob } from './jobs/apiKeyRotationJob.js';
+import { getTimestamp } from './utils/helpers/dateUtils.js';
 
 dotenv.config({ quiet: true });
 
@@ -24,10 +32,6 @@ const allowedOrigins = (process.env.AUTH_TRUSTED_ORIGINS || 'http://localhost:30
 	.split(',')
 	.map((origin) => origin.trim())
 	.filter(Boolean);
-
-export function getTimestamp() {
-	return new Date().toLocaleTimeString('pt-BR', { hour12: false });
-}
 
 // Middleware para log de requisições HTTP
 app.use((req, res, next) => {
@@ -76,14 +80,20 @@ app.get('/api/health', (req, res) => {
 	res.json({ message: `Hermes API rodando. \nUpTime: ${process.uptime().toFixed(2)} segundos!` });
 });
 
-// Rotas de recursos
-app.use('/api/users', userRouter);
+// Rotas de recursos — gerenciamento (autenticação por sessão / api key)
+app.use('/api', userRouter);
+app.use('/api', serviceRouter);
+app.use('/api', apiKeyRouter);
+app.use('/api', logRouter);
+app.use('/api', credentialRouter);
+app.use('/api', templateRouter);
+app.use('/api', emailRouter);
 
 // Middleware de tratamento de erros (deve ser o último)
 app.use(errorHandler);
 
 function showWelcomeBanner() {
-	const version = ''; // Você pode puxar isso do package.json depois se quiser
+	const version = ''; // puxar do package.json
 
 	console.log(
 		chalk.cyan.bold(`
@@ -142,6 +152,10 @@ async function startServer() {
 		try {
 			console.log(chalk.magenta.bold(`[${getTimestamp()}] [DB] Conectando ao banco de dados...`));
 			await dbConnect.connect();
+
+			// Inicia rotinas e agendamentos em plano de fundo (Cron Jobs)
+			startApiKeyRotationJob();
+
 			app.listen(PORT, () => {
 				console.log(
 					chalk.green.bold(`[${getTimestamp()}] [SUCCESS] Servidor rodando na porta ${PORT}`),

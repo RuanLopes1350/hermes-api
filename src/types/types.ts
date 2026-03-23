@@ -70,6 +70,7 @@ export type ServiceSettingsType = {
 	notifications: {
 		alert_on_failure: boolean;
 		alert_email: string | null;
+		webhook_url: string | null;
 	};
 	interface: {
 		theme: 'light' | 'dark';
@@ -94,12 +95,17 @@ export type ApiKeyType = {
 	service_id: string;
 	is_active: boolean;
 	last_used_at?: Date | null;
+	expiresAt?: Date | null;
+	notification_sent_at?: Date | null;
 	createdAt?: Date;
 };
 
 export type CredentialType = {
 	id?: string;
 	name: string;
+	smtp_host: string;
+	smtp_port: number;
+	smtp_secure: boolean;
 	login: string;
 	passkey: string;
 	service_id: string;

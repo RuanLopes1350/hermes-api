@@ -1,9 +1,9 @@
 import 'dotenv/config';
 import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import * as schema from './db/schema';
+import * as schema from './db/schema.js';
 import chalk from 'chalk';
-import { getTimestamp } from '../server';
+import { getTimestamp } from '../utils/helpers/dateUtils.js';
 
 const db_url = process.env.DATABASE_URL!;
 const pool = new Pool({ connectionString: db_url });
@@ -13,7 +13,7 @@ const db_login = process.env.POSTGRES_USER;
 const db_host = process.env.POSTGRES_HOST;
 const db_port = process.env.POSTGRES_PORT;
 const db_name = process.env.POSTGRES_DB;
-const db_urlFiltered = 'postgresql://USUARIO:SENHA@localhost:5432/hermes'
+const db_urlFiltered = 'postgresql://USUARIO:SENHA@localhost:5432/hermes';
 
 export class dbConnect {
 	static async connect(): Promise<void> {

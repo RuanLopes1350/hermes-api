@@ -87,6 +87,8 @@ export const service = pgTable('service', {
 	settings: jsonb('settings').default('{}'),
 	createdAt: timestamp('created_at').notNull().defaultNow(),
 	updatedAt: timestamp('updated_at').notNull().defaultNow(),
+	// Soft delete — registros deletados são mantidos para rastreabilidade
+	deletedAt: timestamp('deleted_at'),
 });
 
 export const api_key = pgTable('api_key', {
@@ -99,18 +101,29 @@ export const api_key = pgTable('api_key', {
 		.references(() => service.id),
 	is_active: boolean('is_active').notNull().default(true),
 	last_used_at: timestamp('last_used_at'),
+	expiresAt: timestamp('expires_at'),
+	notification_sent_at: timestamp('notification_sent_at'),
 	createdAt: timestamp('created_at').notNull().defaultNow(),
+	// Soft delete — mantém histórico de keys mesmo após revogação
+	deletedAt: timestamp('deleted_at'),
 });
 
 export const credential = pgTable('credential', {
 	id: text('id').primaryKey().notNull(),
 	name: varchar('name').notNull(),
+	smtp_host: varchar('smtp_host').notNull(),
+	smtp_port: integer('smtp_port').notNull(),
+	smtp_secure: boolean('smtp_secure').notNull().default(false),
 	login: varchar('login').notNull(),
-	passkey: varchar('passkey').notNull(), // HASH
+	// A senha SMTP é armazenada criptografada com AES-256-GCM
+	passkey: text('passkey').notNull(),
 	service_id: text('service_id')
 		.notNull()
 		.references(() => service.id),
 	createdAt: timestamp('created_at').notNull().defaultNow(),
+	updatedAt: timestamp('updated_at').notNull().defaultNow(),
+	// Soft delete
+	deletedAt: timestamp('deleted_at'),
 });
 
 export const template = pgTable('template', {
@@ -122,6 +135,8 @@ export const template = pgTable('template', {
 	text_content: text('text_content'), // Fallback caso html não seja aceito
 	createdAt: timestamp('created_at').notNull().defaultNow(),
 	updatedAt: timestamp('updated_at').notNull().defaultNow(),
+	// Soft delete
+	deletedAt: timestamp('deleted_at'),
 });
 
 export const email = pgTable('email', {
@@ -134,6 +149,7 @@ export const email = pgTable('email', {
 	subject: varchar('subject').notNull(),
 	recipient_to: varchar('recipient_to').notNull(),
 	body: text('body'),
+	variables: jsonb('variables').default('{}'),
 	status: mail_status_enum('status').notNull().default('pending'),
 	retry_count: integer('retry_count').notNull().default(0),
 	next_retry_at: timestamp('next_retry_at'),
@@ -141,6 +157,8 @@ export const email = pgTable('email', {
 	error_log: text('error_log'),
 	sent_at: timestamp('sent_at'),
 	createdAt: timestamp('created_at').notNull().defaultNow(),
+	// Soft delete — e-mails cancelados são mantidos para auditoria
+	deletedAt: timestamp('deleted_at'),
 });
 
 export const logs = pgTable('logs', {
@@ -149,9 +167,7 @@ export const logs = pgTable('logs', {
 	status_code: integer('status_code').notNull(),
 	endpoint: varchar('endpoint').notNull(),
 	ip_address: varchar('ip_address'),
-	api_key_id: text('api_key_id')
-		.references(() => api_key.id),
-	user_id: text('user_id')
-		.references(() => user.id),
+	api_key_id: text('api_key_id').references(() => api_key.id),
+	user_id: text('user_id').references(() => user.id),
 	createdAt: timestamp('created_at').notNull().defaultNow(),
 });
