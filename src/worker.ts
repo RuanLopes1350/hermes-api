@@ -3,6 +3,7 @@ import { dbConnect } from './config/dbConfig.js';
 import { getTimestamp } from './utils/helpers/dateUtils.js';
 // importar o arquivo do worker para inicializar a instância do BullMQ
 import './queue/emailWorker.js';
+import { setupSystemJobs } from './queue/systemWorker.js';
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
@@ -26,6 +27,9 @@ async function startWorker() {
 				`[${getTimestamp()}] [WORKER] Banco de dados conectado. Fila pronta para processar!`,
 			),
 		);
+
+		// Inicializa os jobs agendados de sistema (como a rotação de API Keys)
+		await setupSystemJobs();
 	} catch (error) {
 		console.error(
 			chalk.red.bold(`[${getTimestamp()}] [ERROR] Erro ao conectar ao banco de dados: ${error}`),
