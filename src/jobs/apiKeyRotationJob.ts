@@ -3,11 +3,34 @@ import { db } from '../config/dbConfig.js';
 import { api_key, service, user } from '../config/db/schema.js';
 import { and, lte, isNull, isNotNull, eq } from 'drizzle-orm';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
+import { isIP } from 'node:net';
 
-/**
- * Lógica de varredura e notificação de API Keys expirando.
- * Esta função agora será chamada pelo BullMQ em vez do node-cron.
- */
+function isSafeUrl(url: string): boolean {
+	try {
+		const parsed = new URL(url);
+		if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+
+		const hostname = parsed.hostname;
+
+		// Se o hostname for um IP, verifica se é privado/local
+		if (isIP(hostname)) {
+			// Lógica para bloquear 127.0.0.1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+			// Bibliotecas como 'is-ip-private' facilitam este trabalho.
+			return false;
+		}
+
+		// Bloqueia nomes conhecidos de loopback
+		if (hostname === 'localhost') return false;
+
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+
+ // Lógica de varredura e notificação de API Keys expirando.
+ // Esta função agora será chamada pelo BullMQ em vez do node-cron.
 export async function processApiKeyRotation() {
 	console.log(
 		chalk.blue.bold(`[${getTimestamp()}] [JOB] Iniciando varredura de API Keys expirando...`),
@@ -60,7 +83,7 @@ export async function processApiKeyRotation() {
 			const alertEmail = settings?.notifications?.alert_email || data.ownerEmail;
 
 			// 1. Notificação via Webhook (POST Request)
-			if (webhookUrl) {
+			if (webhookUrl && isSafeUrl(webhookUrl)) {
 				try {
 					await fetch(webhookUrl, {
 						method: 'POST',
