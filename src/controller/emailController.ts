@@ -14,14 +14,28 @@ class EmailController {
 			chalk.cyan(`[${getTimestamp()}] [POST] /api/services/${req.params.serviceId}/emails`),
 		);
 		try {
-			const serviceId = String(req.params.serviceId);
-			const apiKeyServiceId = req.apiKeyService!.id;
-			const newEmail = await emailService.createEmail(serviceId, req.body, apiKeyServiceId);
-			return CommonResponse.created(
-				res,
-				newEmail,
-				'E-mail enfileirado com sucesso! Status: pending.',
+			// SEGURANÇA: Priorizar o ID do serviço vindo da autenticação verificada
+			const verifiedServiceId = req.apiKeyService!.id;
+
+			// (Opcional) Validar se o ID da URL bate com o da API Key para evitar confusão do cliente
+			const urlServiceId = String(req.params.serviceId);
+			if (urlServiceId !== verifiedServiceId) {
+				return CommonResponse.error(
+					res,
+					403,
+					'FORBIDDEN',
+					null,
+					[],
+					'API Key não pertence a este serviço.',
+				);
+			}
+
+			const newEmail = await emailService.createEmail(
+				verifiedServiceId,
+				req.body,
+				verifiedServiceId,
 			);
+			return CommonResponse.created(res, newEmail, 'E-mail enfileirado com sucesso!');
 		} catch (error) {
 			next(error);
 		}
