@@ -35,6 +35,9 @@ services:
       DB_USER: ${POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       DB_NAME: ${POSTGRES_DB}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PORT: ${REDIS_PORT}
     env_file:
       - .env
     ports:
@@ -54,7 +57,10 @@ services:
     env_file:
       - .env
     environment:
-      DB_HOST: db 
+      DB_HOST: db
+      REDIS_HOST: redis
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
 
 volumes:
   pgdata:
