@@ -2,6 +2,7 @@ import { Router } from 'express';
 import emailController from '../controller/emailController.js';
 import { requireAuth } from '../middlewares/requireAuth.js';
 import { requireApiKey } from '../middlewares/requireApiKey.js';
+import { emailApiRateLimiter } from '../middlewares/rateLimitingMiddleware.js';
 
 const router = Router();
 
@@ -9,6 +10,7 @@ const router = Router();
 router.post(
 	'/services/:serviceId/emails',
 	requireApiKey,
+	emailApiRateLimiter,
 	emailController.create.bind(emailController),
 );
 
