@@ -16,7 +16,7 @@ import credentialRouter from './routes/credentialRoutes.js';
 import templateRouter from './routes/templateRoutes.js';
 import emailRouter from './routes/emailRoutes.js';
 import logRouter from './routes/logRoutes.js';
-import { startApiKeyRotationJob } from './jobs/apiKeyRotationJob.js';
+import { processApiKeyRotation } from './jobs/apiKeyRotationJob.js';
 import { getTimestamp } from './utils/helpers/dateUtils.js';
 
 dotenv.config({ quiet: true });
@@ -154,7 +154,7 @@ async function startServer() {
 			await dbConnect.connect();
 
 			// Inicia rotinas e agendamentos em plano de fundo (Cron Jobs)
-			startApiKeyRotationJob();
+			processApiKeyRotation();
 
 			app.listen(PORT, () => {
 				console.log(

@@ -1,10 +1,26 @@
 import crypto from 'node:crypto';
+import argon2 from 'argon2';
 
-async function generateApiKey(prefix: string) {
-	const raw = crypto.randomBytes(32).toString('base64url'); // Gera uma string aleatória de 32 bytes e a codifica em base64url
-	const key = `${prefix}_${raw}`; // Adiciona o prefixo à chave gerada
-	const hashedKey = crypto.createHash('sha256').update(key).digest('hex'); // Hash da chave usando SHA-256
-	return { key, hashedKey }; // Retorna a chave original e a chave hash
+/**
+ * Utilitário centralizado para geração de API Keys do Hermes.
+ * Formato: hm_[random_prefix].[random_secret]
+ */
+export async function generateSecureApiKey() {
+	// Prefixo público para identificação rápida e indexação no banco
+	const prefix = `hm_${crypto.randomBytes(4).toString('hex')}`;
+	
+	// Segredo aleatório de 32 bytes (64 caracteres hex)
+	const secretKey = crypto.randomBytes(32).toString('hex');
+	
+	// Chave completa que será entregue ao usuário
+	const fullApiKey = `${prefix}.${secretKey}`;
+
+	// Hash seguro para armazenamento (Argon2 é resistente a brute-force e timing attacks)
+	const keyHash = await argon2.hash(fullApiKey);
+
+	return {
+		fullApiKey,
+		keyHash,
+		prefix
+	};
 }
-
-export default generateApiKey;

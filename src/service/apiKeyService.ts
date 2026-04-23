@@ -1,13 +1,11 @@
-import crypto from 'crypto';
-import argon2 from 'argon2';
 import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
-import { v4 as uuidv4 } from 'uuid';
 import apiKeyRepository from '../repository/apiKeyRepository.js';
 import serviceRepository from '../repository/serviceRepository.js';
 import { createApiKeySchema, updateApiKeySchema } from '../utils/validation/apiKeyValidation.js';
 import HttpStatusCode from '../utils/helpers/httpStatusCode.js';
 import { DomainError } from '../utils/helpers/domainError.js';
+import { generateSecureApiKey } from '../utils/apiKeyGenerate.js';
 
 // Erro de domínio para o contexto de API Keys
 export class ApiKeyDomainError extends DomainError {
@@ -40,13 +38,8 @@ class ApiKeyService {
 			);
 		}
 
-		// Formato: hm_PREFIXO.SEGREDO_64_CHARS
-		const prefix = `hm_${crypto.randomBytes(4).toString('hex')}`;
-		const secretKey = crypto.randomBytes(32).toString('hex');
-		const fullApiKey = `${prefix}.${secretKey}`;
-
-		console.log(chalk.magenta(`[${getTimestamp()}] [INFO] [ApiKeyService] Gerando Hash Argon2...`));
-		const keyHash = await argon2.hash(fullApiKey);
+		// Utiliza o utilitário centralizado para gerar a chave e o hash
+		const { fullApiKey, keyHash, prefix } = await generateSecureApiKey();
 
 		const savedApiKey = await apiKeyRepository.createApiKey({
 			name: parsedData.name,

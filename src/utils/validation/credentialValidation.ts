@@ -1,5 +1,24 @@
 import { z } from 'zod';
 
+const smtpPortSchema = z
+	.coerce
+	.number()
+	.int('A porta SMTP deve ser um número inteiro.')
+	.min(1, 'A porta SMTP deve ser maior que 0.')
+	.max(65535, 'A porta SMTP deve ser menor ou igual a 65535.');
+
+const smtpSecureSchema = z.preprocess(
+	(value) => {
+		if (typeof value === 'string') {
+			const normalized = value.trim().toLowerCase();
+			if (normalized === 'true' || normalized === '1') return true;
+			if (normalized === 'false' || normalized === '0') return false;
+		}
+		return value;
+	},
+	z.boolean({ message: 'O campo smtpSecure deve ser booleano (true/false).' }),
+);
+
 // Schema para criação de credencial SMTP
 export const createCredentialSchema = z.object({
 	name: z
@@ -18,12 +37,8 @@ export const createCredentialSchema = z.object({
 		.string()
 		.min(3, 'O host SMTP deve ter no mínimo 3 caracteres.')
 		.max(255, 'O host SMTP não pode exceder 255 caracteres.'),
-	smtpPort: z
-		.number()
-		.int('A porta SMTP deve ser um número inteiro.')
-		.min(1, 'A porta SMTP deve ser maior que 0.')
-		.max(65535, 'A porta SMTP deve ser menor ou igual a 65535.'),
-	smtpSecure: z.boolean(),
+	smtpPort: smtpPortSchema,
+	smtpSecure: smtpSecureSchema,
 });
 
 // Schema para atualização de credencial (todos os campos opcionais)
@@ -37,13 +52,10 @@ export const updateCredentialSchema = z
 		smtpHost: z
 			.string()
 			.min(3, 'O host SMTP deve ter no mínimo 3 caracteres.')
-			.max(255, 'O host SMTP não pode exceder 255 caracteres.'),
-		smtpPort: z
-			.number()
-			.int('A porta SMTP deve ser um número inteiro.')
-			.min(1, 'A porta SMTP deve ser maior que 0.')
-			.max(65535, 'A porta SMTP deve ser menor ou igual a 65535.'),
-		smtpSecure: z.boolean(),
+			.max(255, 'O host SMTP não pode exceder 255 caracteres.')
+			.optional(),
+		smtpPort: smtpPortSchema.optional(),
+		smtpSecure: smtpSecureSchema.optional(),
 		login: z
 			.string()
 			.email('O login deve ser um e-mail válido.')

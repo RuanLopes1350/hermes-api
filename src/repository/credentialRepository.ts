@@ -75,6 +75,9 @@ class CredentialRepository {
 				.select({
 					id: credential.id,
 					name: credential.name,
+					smtp_host: credential.smtp_host,
+					smtp_port: credential.smtp_port,
+					smtp_secure: credential.smtp_secure,
 					login: credential.login,
 					service_id: credential.service_id,
 					createdAt: credential.createdAt,
