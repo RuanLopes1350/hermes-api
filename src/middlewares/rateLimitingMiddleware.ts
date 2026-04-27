@@ -14,6 +14,6 @@ export const emailApiRateLimiter = rateLimit({
     message: "Muitas requisições de e-mail a partir desta API Key. Tente novamente em um minuto.",
     standardHeaders: true,
     legacyHeaders: false,
-    // Desabilita a validação estrita de IP que causa o crash na VM
-    validate: { xForwardedForHeader: false }
+    // Desabilita as validações que causam o erro ERR_ERL_KEY_GEN_IPV6
+    validate: false
 });

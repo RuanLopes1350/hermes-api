@@ -5,15 +5,22 @@ import * as schema from './db/schema.js';
 import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 
-const db_url = process.env.DATABASE_URL!;
-const pool = new Pool({ connectionString: db_url });
-export const db = drizzle(pool, { schema });
-
 const db_login = process.env.POSTGRES_USER;
 const db_host = process.env.POSTGRES_HOST;
 const db_port = process.env.POSTGRES_PORT;
 const db_name = process.env.POSTGRES_DB;
-const db_urlFiltered = 'postgresql://USUARIO:SENHA@localhost:5432/hermes';
+const db_password = process.env.POSTGRES_PASSWORD;
+
+const pool = new Pool({
+	host: db_host,
+	port: parseInt(db_port || '5432'),
+	user: db_login,
+	password: db_password,
+	database: db_name,
+});
+export const db = drizzle(pool, { schema });
+
+const db_urlFiltered = `postgresql://${db_login}:****@${db_host}:${db_port}/${db_name}`;
 
 export class dbConnect {
 	static async connect(): Promise<void> {
