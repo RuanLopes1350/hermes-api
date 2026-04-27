@@ -7,17 +7,16 @@ import CommonResponse from '../utils/helpers/commonResponse.js';
 class EmailController {
 	// POST /api/services/:serviceId/emails
 	// Enfileira um e-mail (autenticação por API Key).
-	// O req.apiKey e req.apiKeyService são injetados pelo middleware requireApiKey.
-
 	async create(req: Request, res: Response, next: NextFunction) {
 		console.log(
 			chalk.cyan(`[${getTimestamp()}] [POST] /api/services/${req.params.serviceId}/emails`),
 		);
 		try {
-			// SEGURANÇA: Priorizar o ID do serviço vindo da autenticação verificada
-			const verifiedServiceId = req.apiKeyService!.id;
+			// SEGURANÇA: Usamos os IDs injetados pelo middleware requireApiKey
+			const verifiedServiceId = req.serviceId!;
+			const verifiedCredentialId = req.credentialId!;
 
-			// (Opcional) Validar se o ID da URL bate com o da API Key para evitar confusão do cliente
+			// Validar se o ID da URL bate com o da API Key
 			const urlServiceId = String(req.params.serviceId);
 			if (urlServiceId !== verifiedServiceId) {
 				return CommonResponse.error(
@@ -30,11 +29,14 @@ class EmailController {
 				);
 			}
 
+			// Chamamos o service passando o Service ID e a Credencial ID vinculada à chave
 			const newEmail = await emailService.createEmail(
 				verifiedServiceId,
 				req.body,
-				verifiedServiceId,
+				verifiedServiceId, // O terceiro parâmetro do service é o Service ID da chave para validação
+                verifiedCredentialId // Passaremos um QUARTO parâmetro para forçar a credencial da chave
 			);
+			
 			return CommonResponse.created(res, newEmail, 'E-mail enfileirado com sucesso!');
 		} catch (error) {
 			next(error);
@@ -42,8 +44,6 @@ class EmailController {
 	}
 
 	// GET /api/services/:serviceId/emails?status=pending
-	// Lista e-mails com filtro opcional de status (autenticação por sessão).
-
 	async list(req: Request, res: Response, next: NextFunction) {
 		console.log(
 			chalk.cyan(`[${getTimestamp()}] [GET] /api/services/${req.params.serviceId}/emails`),
@@ -60,8 +60,6 @@ class EmailController {
 	}
 
 	// GET /api/services/:serviceId/emails/:id
-	// Busca um e-mail por ID (autenticação por sessão).
-
 	async getOne(req: Request, res: Response, next: NextFunction) {
 		console.log(
 			chalk.cyan(
@@ -80,8 +78,6 @@ class EmailController {
 	}
 
 	// DELETE /api/services/:serviceId/emails/:id
-	// Cancela um e-mail pendente (autenticação por sessão).
-
 	async cancel(req: Request, res: Response, next: NextFunction) {
 		console.log(
 			chalk.cyan(

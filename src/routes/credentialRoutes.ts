@@ -4,7 +4,11 @@ import { requireAuth } from '../middlewares/requireAuth.js';
 
 const router = Router();
 
-// Todas as rotas de credenciais exigem sessão autenticada
+// --- Rotas de Gerenciamento de Credenciais ---
+
+// Listagem global do usuário
+router.get('/credentials', requireAuth, credentialController.listGlobal.bind(credentialController));
+
 router.post(
 	'/services/:serviceId/credentials',
 	requireAuth,
@@ -29,6 +33,19 @@ router.delete(
 	'/services/:serviceId/credentials/:id',
 	requireAuth,
 	credentialController.remove.bind(credentialController),
+);
+
+// --- Rotas Específicas para Google OAuth2 ---
+
+router.get(
+	'/services/:serviceId/credentials/:id/authorize',
+	requireAuth,
+	credentialController.authorizeGoogle.bind(credentialController),
+);
+
+router.get(
+	'/auth/google/callback',
+	credentialController.callbackGoogle.bind(credentialController),
 );
 
 export default router;

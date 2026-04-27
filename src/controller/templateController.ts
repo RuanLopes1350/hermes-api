@@ -3,8 +3,34 @@ import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import templateService from '../service/templateService.js';
 import CommonResponse from '../utils/helpers/commonResponse.js';
+import { renderTemplate } from '../utils/renderTemplate.js';
 
 class TemplateController {
+	// POST /api/services/:serviceId/templates/preview
+	// Renderiza um MJML + Handlebars em tempo real para o frontend
+	async preview(req: Request, res: Response, next: NextFunction) {
+		console.log(
+			chalk.cyan(`[${getTimestamp()}] [POST] /api/services/${req.params.serviceId}/templates/preview`),
+		);
+		try {
+			const { mjml, variables } = req.body;
+			
+			if (!mjml) {
+				return res.status(400).json({ error: 'O conteúdo MJML é obrigatório para o preview.' });
+			}
+
+			const result = await renderTemplate(mjml, variables || {});
+			
+			return res.json({
+				html: result.html,
+				errors: result.errors,
+				renderedAt: new Date()
+			});
+		} catch (error) {
+			next(error);
+		}
+	}
+
 	// POST /api/services/:serviceId/templates
 	async create(req: Request, res: Response, next: NextFunction) {
 		console.log(

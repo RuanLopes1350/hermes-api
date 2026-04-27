@@ -18,25 +18,22 @@ export class EmailDomainError extends DomainError {
 }
 
 class EmailService {
-	// Enfileira um novo e-mail com status 'pending'.
-	//
-	// Valida:
-	// - O serviceId da rota confere com o serviço da API Key (segurança)
-	// - Se credential_id informado, pertence ao mesmo serviço
-	// - Se template_id informado, pertence ao mesmo serviço
-	// - Pelo menos um de (body OU template_id) deve ser informado
-	//
-	// IMPORTANTE: O envio real (nodemailer + BullMQ) será implementado na próxima fase.
-	// Esta camada está preparada para receber o job: o worker buscará emails com status='pending'.
-	//
-	async createEmail(serviceId: string, data: unknown, apiKeyServiceId: string) {
+	/**
+	 * Enfileira um novo e-mail vinculando-o à credencial carimbada na API Key.
+	 */
+	async createEmail(
+        serviceId: string, 
+        data: unknown, 
+        apiKeyServiceId: string,
+        apiKeyCredentialId: string // NOVO: Credencial obrigatória da chave
+    ) {
 		console.log(
 			chalk.blue.bold(
 				`[${getTimestamp()}] [INFO] [EmailService] Enfileirando e-mail para serviço: ${serviceId}`,
 			),
 		);
 
-		// Garante que a API Key pertence ao serviceId da rota (evita uso cruzado de keys)
+		// 1. Validação de Segurança: API Key pertence ao serviço da rota?
 		if (apiKeyServiceId !== serviceId) {
 			throw new EmailDomainError(
 				'Esta API Key não tem permissão para enviar e-mails neste serviço.',
@@ -47,19 +44,7 @@ class EmailService {
 
 		const parsedData = createEmailSchema.parse(data);
 
-		// Valida que credential_id pertence ao serviço (se informado)
-		if (parsedData.credential_id) {
-			const cred = await credentialRepository.findById(parsedData.credential_id);
-			if (!cred || cred.service_id !== serviceId) {
-				throw new EmailDomainError(
-					'A credencial informada não pertence a este serviço.',
-					HttpStatusCode.UNPROCESSABLE_ENTITY.code,
-					'INVALID_CREDENTIAL',
-				);
-			}
-		}
-
-		// Valida que template_id pertence ao serviço (se informado)
+		// 2. Validação de Template (se informado)
 		if (parsedData.template_id) {
 			const tmpl = await templateRepository.findById(parsedData.template_id);
 			if (!tmpl || tmpl.service_id !== serviceId) {
@@ -71,9 +56,11 @@ class EmailService {
 			}
 		}
 
+		// 3. Persistência
+		// IMPORTANTE: Ignoramos o credential_id do body (se enviado) e usamos o da API KEY
 		const newEmail = await emailRepository.create({
 			serviceId: serviceId,
-			credentialId: parsedData.credential_id,
+			credentialId: apiKeyCredentialId, // FORÇA O USO DA CREDENCIAL DA CHAVE
 			templateId: parsedData.template_id,
 			subject: parsedData.subject,
 			recipientTo: parsedData.recipient_to,
@@ -82,7 +69,7 @@ class EmailService {
 			scheduledAt: parsedData.scheduled_at ? new Date(parsedData.scheduled_at) : undefined,
 		});
 
-		// Despacha o Job para a Fila
+		// 4. Despacha para a Fila (BullMQ)
 		await emailQueue.add(
 			'sendEmailJob',
 			{
@@ -91,8 +78,6 @@ class EmailService {
 				variables: parsedData.variables,
 			},
 			{
-				// Agenda apenas se scheduled_at for definido para o futuro, senão roda logo.
-				// O atributo delay de BullMQ recebe em ms o tempo de espera.
 				delay: parsedData.scheduled_at
 					? Math.max(0, new Date(parsedData.scheduled_at).getTime() - Date.now())
 					: 0,
@@ -101,100 +86,30 @@ class EmailService {
 
 		console.log(
 			chalk.green.bold(
-				`[${getTimestamp()}] [SUCCESS] [EmailService] E-mail enfileirado: ${newEmail.id} | status: pending`,
+				`[${getTimestamp()}] [SUCCESS] [EmailService] E-mail enfileirado: ${newEmail.id} vinculado à credencial ${apiKeyCredentialId}`,
 			),
 		);
 		return newEmail;
 	}
 
-	// Lista e-mails de um serviço, com filtro opcional de status.
-	// Acesso via sessão de usuário autenticado.
-	//
 	async listEmails(serviceId: string, userId: string, status?: string) {
-		console.log(
-			chalk.blue.bold(
-				`[${getTimestamp()}] [INFO] [EmailService] Listando e-mails do serviço: ${serviceId}`,
-			),
-		);
-
 		const serviceExists = await serviceRepository.findByIdAndOwner(serviceId, userId);
-		if (!serviceExists) {
-			throw new EmailDomainError(
-				'Serviço não encontrado ou você não tem permissão para acessá-lo.',
-				HttpStatusCode.NOT_FOUND.code,
-				'SERVICE_NOT_FOUND',
-			);
-		}
-
-		const validStatuses = ['pending', 'sent', 'failed', 'retrying'];
-		if (status && !validStatuses.includes(status)) {
-			throw new EmailDomainError(
-				`Status inválido. Use: ${validStatuses.join(', ')}.`,
-				HttpStatusCode.BAD_REQUEST.code,
-				'INVALID_STATUS',
-			);
-		}
-
+		if (!serviceExists) throw new EmailDomainError('Serviço não encontrado.', 404, 'NOT_FOUND');
 		return emailRepository.findAllByService(serviceId, status);
 	}
 
-	// Busca um e-mail por ID, verificando que pertence ao serviço do usuário.
-	//
 	async getEmail(serviceId: string, emailId: string, userId: string) {
-		console.log(
-			chalk.blue.bold(`[${getTimestamp()}] [INFO] [EmailService] Buscando e-mail: ${emailId}`),
-		);
-
-		const serviceExists = await serviceRepository.findByIdAndOwner(serviceId, userId);
-		if (!serviceExists) {
-			throw new EmailDomainError(
-				'Serviço não encontrado ou você não tem permissão para acessá-lo.',
-				HttpStatusCode.NOT_FOUND.code,
-				'SERVICE_NOT_FOUND',
-			);
-		}
-
 		const found = await emailRepository.findById(emailId);
-		if (!found || found.service_id !== serviceId) {
-			throw new EmailDomainError(
-				'E-mail não encontrado.',
-				HttpStatusCode.NOT_FOUND.code,
-				'EMAIL_NOT_FOUND',
-			);
-		}
+		if (!found || found.service_id !== serviceId) throw new EmailDomainError('E-mail não encontrado.', 404, 'NOT_FOUND');
 		return found;
 	}
 
-	// Cancela (soft delete) um e-mail.
-	// Apenas e-mails com status 'pending' podem ser cancelados.
-	//
 	async cancelEmail(serviceId: string, emailId: string, userId: string) {
-		console.log(
-			chalk.blue.bold(`[${getTimestamp()}] [INFO] [EmailService] Cancelando e-mail: ${emailId}`),
-		);
-
 		const found = await this.getEmail(serviceId, emailId, userId);
-
 		if (found.status !== 'pending') {
-			throw new EmailDomainError(
-				`Apenas e-mails com status 'pending' podem ser cancelados. Status atual: '${found.status}'.`,
-				HttpStatusCode.CONFLICT.code,
-				'EMAIL_NOT_CANCELLABLE',
-			);
+			throw new EmailDomainError(`Apenas e-mails pendentes podem ser cancelados. Status: ${found.status}`, 409, 'CONFLICT');
 		}
-
 		const deleted = await emailRepository.softDeleteById(emailId);
-		if (!deleted) {
-			throw new EmailDomainError(
-				'E-mail não encontrado.',
-				HttpStatusCode.NOT_FOUND.code,
-				'EMAIL_NOT_FOUND',
-			);
-		}
-
-		console.log(
-			chalk.green.bold(`[${getTimestamp()}] [SUCCESS] [EmailService] E-mail cancelado: ${emailId}`),
-		);
 		return { id: deleted.id };
 	}
 }

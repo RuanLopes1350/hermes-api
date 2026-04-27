@@ -1,15 +1,26 @@
 import { db } from '../config/dbConfig.js';
-import { credential } from '../config/db/schema.js';
+import { credential, service } from '../config/db/schema.js';
 import { and, eq, isNull } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import { parseDatabaseError } from '../utils/helpers/dbErrors.js';
+import { CredentialType } from '../types/types.js';
 
 class CredentialRepository {
-	// Cria uma nova credencial SMTP para um serviço.
-	// O campo `passkey` deve chegar CRIPTOGRAFADO — a criptografia é responsabilidade do Service.
-	async create(data: { name: string; login: string; smtpHost: string; smtpPort: number; smtpSecure: boolean; passkey: string; serviceId: string }) {
+	// Cria uma nova credencial para um serviço.
+	async create(data: {
+		name: string;
+		login: string;
+		smtpHost: string;
+		smtpPort: number;
+		smtpSecure: boolean;
+		passkey?: string;
+		authType?: 'plain' | 'oauth2';
+		clientId?: string;
+		clientSecret?: string;
+		serviceId: string;
+	}) {
 		console.log(
 			chalk.magenta(`[${getTimestamp()}] [DB] [CredentialRepository] Inserindo credencial...`),
 		);
@@ -19,21 +30,17 @@ class CredentialRepository {
 				.values({
 					id: uuidv4(),
 					name: data.name,
+					auth_type: data.authType || 'plain',
 					smtp_host: data.smtpHost,
 					smtp_port: data.smtpPort,
 					smtp_secure: data.smtpSecure,
 					login: data.login,
 					passkey: data.passkey,
+					client_id: data.clientId,
+					client_secret: data.clientSecret,
 					service_id: data.serviceId,
 				})
-				.returning({
-					id: credential.id,
-					name: credential.name,
-					login: credential.login,
-					service_id: credential.service_id,
-					createdAt: credential.createdAt,
-					updatedAt: credential.updatedAt,
-				});
+				.returning();
 			return newCredential;
 		} catch (error) {
 			throw parseDatabaseError(error, 'CredentialRepository.create');
@@ -41,18 +48,13 @@ class CredentialRepository {
 	}
 
 	// Lista todas as credenciais ativas de um serviço.
-	// A senha (`passkey`) é SEMPRE excluída do resultado.
-	async findAllByService(serviceId: string) {
-		console.log(
-			chalk.magenta(
-				`[${getTimestamp()}] [DB] [CredentialRepository] Listando credenciais do serviço: ${serviceId}`,
-			),
-		);
+	async findAllByService(serviceId: string): Promise<Partial<CredentialType>[]> {
 		try {
 			return await db
 				.select({
 					id: credential.id,
 					name: credential.name,
+					auth_type: credential.auth_type,
 					login: credential.login,
 					service_id: credential.service_id,
 					createdAt: credential.createdAt,
@@ -65,72 +67,53 @@ class CredentialRepository {
 		}
 	}
 
-	// Busca uma credencial ativa por ID, sem expor a senha.
-	async findById(id: string) {
-		console.log(
-			chalk.magenta(`[${getTimestamp()}] [DB] [CredentialRepository] Buscando credencial: ${id}`),
-		);
-		try {
-			const [found] = await db
-				.select({
-					id: credential.id,
-					name: credential.name,
-					smtp_host: credential.smtp_host,
-					smtp_port: credential.smtp_port,
-					smtp_secure: credential.smtp_secure,
-					login: credential.login,
-					service_id: credential.service_id,
-					createdAt: credential.createdAt,
-					updatedAt: credential.updatedAt,
-				})
-				.from(credential)
-				.where(and(eq(credential.id, id), isNull(credential.deletedAt)))
-				.limit(1);
-			return found ?? null;
-		} catch (error) {
-			throw parseDatabaseError(error, 'CredentialRepository.findById');
-		}
-	}
+    // NOVO: Lista todas as credenciais de um usuário (em todos os seus serviços)
+    async findAllByUser(userId: string): Promise<Partial<CredentialType>[]> {
+        try {
+            return await db
+                .select({
+                    id: credential.id,
+                    name: credential.name,
+                    auth_type: credential.auth_type,
+                    login: credential.login,
+                    service_id: credential.service_id,
+                    createdAt: credential.createdAt,
+                    updatedAt: credential.updatedAt,
+                })
+                .from(credential)
+                .innerJoin(service, eq(credential.service_id, service.id))
+                .where(and(eq(service.owner_id, userId), isNull(credential.deletedAt)));
+        } catch (error) {
+            throw parseDatabaseError(error, 'CredentialRepository.findAllByUser');
+        }
+    }
 
-	// Busca uma credencial ativa por ID incluindo a passkey criptografada.
-	// Uso exclusivo interno para descriptografar antes do envio de e-mail.
-	async findByIdWithPasskey(id: string) {
-		console.log(
-			chalk.magenta(
-				`[${getTimestamp()}] [DB] [CredentialRepository] Buscando credencial com passkey: ${id}`,
-			),
-		);
+	// Busca uma credencial ativa por ID.
+	async findById(id: string): Promise<CredentialType | null> {
 		try {
 			const [found] = await db
 				.select()
 				.from(credential)
 				.where(and(eq(credential.id, id), isNull(credential.deletedAt)))
 				.limit(1);
-			return found ?? null;
+			return (found as CredentialType) ?? null;
 		} catch (error) {
-			throw parseDatabaseError(error, 'CredentialRepository.findByIdWithPasskey');
+			throw parseDatabaseError(error, 'CredentialRepository.findById');
 		}
 	}
 
-	// Atualiza nome, login e/ou passkey (criptografada) de uma credencial.
-	async updateById(id: string, data: { name?: string; login?: string; passkey?: string }) {
-		console.log(
-			chalk.magenta(
-				`[${getTimestamp()}] [DB] [CredentialRepository] Atualizando credencial: ${id}`,
-			),
-		);
+	async findByIdWithPasskey(id: string): Promise<CredentialType | null> {
+		return this.findById(id);
+	}
+
+	// Atualiza campos de uma credencial.
+	async updateById(id: string, data: any) {
 		try {
 			const [updated] = await db
 				.update(credential)
 				.set({ ...data, updatedAt: new Date() })
 				.where(and(eq(credential.id, id), isNull(credential.deletedAt)))
-				.returning({
-					id: credential.id,
-					name: credential.name,
-					login: credential.login,
-					service_id: credential.service_id,
-					updatedAt: credential.updatedAt,
-				});
+				.returning();
 			return updated ?? null;
 		} catch (error) {
 			throw parseDatabaseError(error, 'CredentialRepository.updateById');
@@ -139,11 +122,6 @@ class CredentialRepository {
 
 	// Soft delete de uma credencial.
 	async softDeleteById(id: string) {
-		console.log(
-			chalk.magenta(
-				`[${getTimestamp()}] [DB] [CredentialRepository] Soft delete da credencial: ${id}`,
-			),
-		);
 		try {
 			const [deleted] = await db
 				.update(credential)

@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import apiKeyRepository from '../repository/apiKeyRepository.js';
 import serviceRepository from '../repository/serviceRepository.js';
+import credentialRepository from '../repository/credentialRepository.js'; // NOVO: Para validar a credencial
 import { createApiKeySchema, updateApiKeySchema } from '../utils/validation/apiKeyValidation.js';
 import HttpStatusCode from '../utils/helpers/httpStatusCode.js';
 import { DomainError } from '../utils/helpers/domainError.js';
@@ -16,29 +17,26 @@ export class ApiKeyDomainError extends DomainError {
 }
 
 class ApiKeyService {
-	// Gera uma nova API Key para um serviço do usuário autenticado.
-	// A chave completa é retornada UMA ÚNICA VEZ — nunca mais poderá ser recuperada.
-	//
+	/**
+	 * Gera uma nova API Key vinculada obrigatoriamente a uma credencial.
+	 */
 	async generateApiKey(data: unknown, userId: string) {
-		console.log(
-			chalk.blue.bold(
-				`[${getTimestamp()}] [INFO] [ApiKeyService] Validando e gerando nova API Key...`,
-			),
-		);
+		console.log(chalk.blue.bold(`[${getTimestamp()}] [INFO] [ApiKeyService] Gerando nova API Key vinculada...`));
 
 		const parsedData = createApiKeySchema.parse(data);
 
-		// Garante que o serviço existe e pertence ao usuário
+		// 1. Valida que o serviço pertence ao usuário
 		const serviceExists = await serviceRepository.findByIdAndOwner(parsedData.serviceId, userId);
 		if (!serviceExists) {
-			throw new ApiKeyDomainError(
-				'Serviço não encontrado ou você não tem permissão para acessá-lo.',
-				HttpStatusCode.NOT_FOUND.code,
-				'SERVICE_NOT_FOUND',
-			);
+			throw new ApiKeyDomainError('Serviço não encontrado.', 404, 'SERVICE_NOT_FOUND');
 		}
 
-		// Utiliza o utilitário centralizado para gerar a chave e o hash
+		// 2. Valida que a credencial existe e pertence ao mesmo serviço
+		const cred = await credentialRepository.findById(parsedData.credentialId);
+		if (!cred || cred.service_id !== parsedData.serviceId) {
+			throw new ApiKeyDomainError('Credencial inválida para este serviço.', 400, 'INVALID_CREDENTIAL');
+		}
+
 		const { fullApiKey, keyHash, prefix } = await generateSecureApiKey();
 
 		const savedApiKey = await apiKeyRepository.createApiKey({
@@ -46,84 +44,40 @@ class ApiKeyService {
 			keyHash: keyHash,
 			prefix: prefix,
 			serviceId: parsedData.serviceId,
+			credentialId: parsedData.credentialId, // SALVA O VÍNCULO OBRIGATÓRIO
 			expiresAt: parsedData.expires_at ? new Date(parsedData.expires_at) : null,
 		});
 
-		console.log(
-			chalk.green.bold(
-				`[${getTimestamp()}] [SUCCESS] [ApiKeyService] API Key gerada: ${savedApiKey.id}`,
-			),
-		);
+		console.log(chalk.green.bold(`[${getTimestamp()}] [SUCCESS] [ApiKeyService] API Key gerada: ${savedApiKey.id}`));
 
-		// Retorna os dados + o token plano (exibido apenas agora, nunca mais)
 		return {
 			...savedApiKey,
 			token: fullApiKey,
-			aviso: 'Guarde este token de acesso. Ele não será exibido novamente.',
+			aviso: 'Guarde este token. Ele vincula você diretamente à credencial: ' + cred.name,
 		};
 	}
 
-	// Lista todas as API Keys ativas de um serviço (sem o hash).
-	// Verifica que o serviço pertence ao usuário antes de listar.
-	//
 	async listApiKeys(serviceId: string, userId: string) {
-		console.log(
-			chalk.blue.bold(
-				`[${getTimestamp()}] [INFO] [ApiKeyService] Listando keys do serviço: ${serviceId}`,
-			),
-		);
-
 		const serviceExists = await serviceRepository.findByIdAndOwner(serviceId, userId);
-		if (!serviceExists) {
-			throw new ApiKeyDomainError(
-				'Serviço não encontrado ou você não tem permissão para acessá-lo.',
-				HttpStatusCode.NOT_FOUND.code,
-				'SERVICE_NOT_FOUND',
-			);
-		}
-
+		if (!serviceExists) throw new ApiKeyDomainError('Serviço não encontrado.', 404, 'SERVICE_NOT_FOUND');
 		return apiKeyRepository.findAllByService(serviceId);
 	}
 
-	// Busca uma API Key por ID, verificando que o serviço pertence ao usuário.
-	//
+    // NOVO: Lista todas as API Keys do usuário
+    async listAllUserApiKeys(userId: string) {
+        return apiKeyRepository.findAllByUser(userId);
+    }
+
 	async getApiKey(keyId: string, userId: string) {
-		console.log(
-			chalk.blue.bold(`[${getTimestamp()}] [INFO] [ApiKeyService] Buscando key: ${keyId}`),
-		);
-
 		const found = await apiKeyRepository.findById(keyId);
-		if (!found) {
-			throw new ApiKeyDomainError(
-				'API Key não encontrada.',
-				HttpStatusCode.NOT_FOUND.code,
-				'API_KEY_NOT_FOUND',
-			);
-		}
-
-		// Valida que o serviço da key pertence ao requester
+		if (!found) throw new ApiKeyDomainError('API Key não encontrada.', 404, 'API_KEY_NOT_FOUND');
 		const serviceExists = await serviceRepository.findByIdAndOwner(found.service_id, userId);
-		if (!serviceExists) {
-			throw new ApiKeyDomainError(
-				'Você não tem permissão para acessar esta API Key.',
-				HttpStatusCode.FORBIDDEN.code,
-				'FORBIDDEN',
-			);
-		}
-
+		if (!serviceExists) throw new ApiKeyDomainError('Acesso negado.', 403, 'FORBIDDEN');
 		return found;
 	}
 
-	// Atualiza nome e/ou status ativo de uma API Key.
-	//
 	async updateApiKey(keyId: string, data: unknown, userId: string) {
-		console.log(
-			chalk.blue.bold(`[${getTimestamp()}] [INFO] [ApiKeyService] Atualizando key: ${keyId}`),
-		);
-
-		// Busca e valida propriedade
 		await this.getApiKey(keyId, userId);
-
 		const parsedData = updateApiKeySchema.parse(data);
 		const updatePayload = {
 			...(parsedData.name !== undefined && { name: parsedData.name }),
@@ -132,44 +86,12 @@ class ApiKeyService {
 				expiresAt: parsedData.expires_at ? new Date(parsedData.expires_at) : null,
 			}),
 		};
-
-		const updated = await apiKeyRepository.updateById(keyId, updatePayload);
-		if (!updated) {
-			throw new ApiKeyDomainError(
-				'API Key não encontrada.',
-				HttpStatusCode.NOT_FOUND.code,
-				'API_KEY_NOT_FOUND',
-			);
-		}
-
-		console.log(
-			chalk.green.bold(`[${getTimestamp()}] [SUCCESS] [ApiKeyService] Key atualizada: ${keyId}`),
-		);
-		return updated;
+		return await apiKeyRepository.updateById(keyId, updatePayload);
 	}
 
-	// Revoga (soft delete) uma API Key.
-	//
 	async revokeApiKey(keyId: string, userId: string) {
-		console.log(
-			chalk.blue.bold(`[${getTimestamp()}] [INFO] [ApiKeyService] Revogando key: ${keyId}`),
-		);
-
-		// Busca e valida propriedade
 		await this.getApiKey(keyId, userId);
-
 		const deleted = await apiKeyRepository.softDeleteById(keyId);
-		if (!deleted) {
-			throw new ApiKeyDomainError(
-				'API Key não encontrada.',
-				HttpStatusCode.NOT_FOUND.code,
-				'API_KEY_NOT_FOUND',
-			);
-		}
-
-		console.log(
-			chalk.green.bold(`[${getTimestamp()}] [SUCCESS] [ApiKeyService] Key revogada: ${keyId}`),
-		);
 		return { id: deleted.id };
 	}
 }

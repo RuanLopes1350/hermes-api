@@ -4,14 +4,41 @@ import { requireAuth } from '../middlewares/requireAuth.js';
 
 const router = Router();
 
-// Todas as rotas de API Keys exigem sessão autenticada
-router.post('/keys', requireAuth, apiKeyController.create.bind(apiKeyController));
+// Listagem global do usuário
+router.get('/api-keys', requireAuth, apiKeyController.listGlobal.bind(apiKeyController));
 
-// GET /keys?serviceId=XXX — lista as keys de um serviço
+// Padronizando para seguir a hierarquia de serviços
+router.post(
+	'/services/:serviceId/api-keys',
+	requireAuth,
+	apiKeyController.create.bind(apiKeyController),
+);
+
+router.get(
+	'/services/:serviceId/api-keys',
+	requireAuth,
+	apiKeyController.list.bind(apiKeyController),
+);
+
+router.get(
+	'/services/:serviceId/api-keys/:id',
+	requireAuth,
+	apiKeyController.getOne.bind(apiKeyController),
+);
+
+router.patch(
+	'/services/:serviceId/api-keys/:id',
+	requireAuth,
+	apiKeyController.update.bind(apiKeyController),
+);
+
+router.delete(
+	'/services/:serviceId/api-keys/:id',
+	requireAuth,
+	apiKeyController.revoke.bind(apiKeyController),
+);
+
+// Mantendo compatibilidade temporária
 router.get('/keys', requireAuth, apiKeyController.list.bind(apiKeyController));
-
-router.get('/keys/:id', requireAuth, apiKeyController.getOne.bind(apiKeyController));
-router.patch('/keys/:id', requireAuth, apiKeyController.update.bind(apiKeyController));
-router.delete('/keys/:id', requireAuth, apiKeyController.revoke.bind(apiKeyController));
 
 export default router;

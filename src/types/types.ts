@@ -101,15 +101,20 @@ export type ApiKeyType = {
 };
 
 export type CredentialType = {
-	id?: string;
+	id: string;
 	name: string;
+	auth_type: 'plain' | 'oauth2';
 	smtp_host: string;
 	smtp_port: number;
 	smtp_secure: boolean;
 	login: string;
-	passkey: string;
+	passkey?: string | null;
+	client_id?: string | null;
+	client_secret?: string | null;
+	refresh_token?: string | null;
 	service_id: string;
 	createdAt?: Date;
+	updatedAt?: Date;
 };
 
 export type TemplateType = {

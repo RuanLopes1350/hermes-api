@@ -28,10 +28,23 @@ const adminPassword = process.env.ADMIN_PASSWORD;
 const app = express();
 const PORT = process.env.PORT || 1350;
 const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// 1. Configuração de CORS (Deve ser o primeiro)
 const allowedOrigins = (process.env.AUTH_TRUSTED_ORIGINS || 'http://localhost:3000')
 	.split(',')
 	.map((origin) => origin.trim())
 	.filter(Boolean);
+
+app.use(
+	cors({
+		origin: allowedOrigins.length > 0 ? allowedOrigins : true,
+		credentials: true,
+	}),
+);
+
+// 2. Parsers de Body (Devem vir antes das rotas)
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Middleware para log de requisições HTTP
 app.use((req, res, next) => {
@@ -57,161 +70,54 @@ app.use((req, res, next) => {
 	next();
 });
 
-app.use(
-	cors({
-		origin: allowedOrigins.length > 0 ? allowedOrigins : true,
-		credentials: true,
-	}),
-);
+// 3. Handler do Better-Auth
+app.all('/api/auth/*path', toNodeHandler(auth));
 
-// Middleware para autenticação das rotas de auth
-app.all('/api/auth/*splat', toNodeHandler(auth));
-
-app.use(express.json());
-
-// Rotas base
+// 4. Rotas da API
 app.get('/', (req, res) => {
 	res.redirect('/api/health');
 });
-app.get('/api', (req, res) => {
-	res.redirect('/api/health');
-});
 app.get('/api/health', (req, res) => {
-	res.json({ message: `Hermes API rodando. \nUpTime: ${process.uptime().toFixed(2)} segundos!` });
+	res.json({ message: `Hermes API rodando. UpTime: ${process.uptime().toFixed(2)}s` });
 });
 
-// Rotas de recursos — gerenciamento (autenticação por sessão / api key)
 app.use('/api', userRouter);
-app.use('/api', serviceRouter);
+// Nota: Certifique-se de que o import de serviceRouter está correto conforme seu arquivo físico
+import serviceRoutes from './routes/serviceRoutes.js'; 
+app.use('/api', serviceRoutes);
 app.use('/api', apiKeyRouter);
 app.use('/api', logRouter);
 app.use('/api', credentialRouter);
 app.use('/api', templateRouter);
 app.use('/api', emailRouter);
 
-// Middleware de tratamento de erros (deve ser o último)
 app.use(errorHandler);
 
-function showWelcomeBanner() {
-	const version = ''; // puxar do package.json
-
-	console.log(
-		chalk.cyan.bold(`
-  ==============================================================
-    🚀  HERMES API - MICROSSERVIÇO DE EMAILS TRANSACIONAIS  📧
-  ==============================================================
-    [CRIADO POR]:  ${chalk.yellow.bold('Ruan Lopes')}
-    [REPOSITÓRIO]: ${chalk.yellow.bold('https://github.com/ruanlopes/hermes-api')}
-    [Ambiente]:    ${chalk.yellow.bold(NODE_ENV)}
-    [Versão]:      ${chalk.yellow.bold(version)}
-    [Iniciado]:    ${chalk.yellow.bold(new Date().toLocaleDateString('pt-BR'))} às ${chalk.yellow.bold(getTimestamp())}
-  ==============================================================
-`),
-	);
-}
-
 async function createAdminUser() {
-	if (!adminName || !adminEmail || !adminPassword) {
-		console.warn(
-			chalk.yellow.bold(
-				`[${getTimestamp()}] [WARNING] Variáveis ADMIN_NAME, ADMIN_EMAIL ou ADMIN_PASSWORD não definidas. Usuário admin não será criado.`,
-			),
-		);
-		return;
-	}
-
+	if (!adminName || !adminEmail || !adminPassword) return;
 	try {
 		await auth.api.signUpEmail({
-			body: {
-				name: adminName,
-				email: adminEmail,
-				password: adminPassword,
-				isAdmin: true,
-			},
+			body: { name: adminName, email: adminEmail, password: adminPassword, isAdmin: true },
 		});
-		console.log(
-			chalk.green.bold(`[${getTimestamp()}] [SUCCESS] Usuário admin criado com sucesso.`),
-		);
+		console.log(chalk.green.bold(`[${getTimestamp()}] [SUCCESS] Usuário admin pronto.`));
 	} catch (error) {
-		if (isAPIError(error) && error.statusCode === 422) {
-			console.log(chalk.yellow.bold(`[${getTimestamp()}] [INFO] Usuário admin já existe.`));
-			return;
-		}
-
-		console.error(
-			chalk.red.bold(`[${getTimestamp()}] [ERROR] Erro ao criar usuário admin: ${error}`),
-		);
+		if (isAPIError(error) && error.statusCode === 422) return;
+		console.error(chalk.red.bold(`[${getTimestamp()}] [ERROR] Erro no Admin: ${error}`));
 	}
 }
 
 async function startServer() {
-	showWelcomeBanner();
 	try {
-		// Conectando ao Banco de Dados
-		console.log(chalk.blue.bold(`[${getTimestamp()}] [SERVER] Inicializando o servidor...`));
-		try {
-			console.log(chalk.magenta.bold(`[${getTimestamp()}] [DB] Conectando ao banco de dados...`));
-			await dbConnect.connect();
-
-			// Inicia rotinas e agendamentos em plano de fundo (Cron Jobs)
-			processApiKeyRotation();
-
-			app.listen(PORT, () => {
-				console.log(
-					chalk.green.bold(`[${getTimestamp()}] [SUCCESS] Servidor rodando na porta ${PORT}`),
-				);
-			});
-		} catch (error) {
-			console.error(
-				chalk.red.bold(`[${getTimestamp()}] [ERROR] Erro ao conectar ao banco de dados: ${error}`),
-			);
-			process.exit(1);
-		}
-
-		// Criando usuário admin
+		await dbConnect.connect();
+		processApiKeyRotation();
+		app.listen(PORT, () => {
+			console.log(chalk.green.bold(`[${getTimestamp()}] [SUCCESS] Hermes API na porta ${PORT}`));
+		});
 		await createAdminUser();
 	} catch (error) {
-		console.error(
-			chalk.red.bold(`[${getTimestamp()}] [ERROR] Erro ao iniciar o servidor: ${error}`),
-		);
+		console.error(chalk.red.bold(`[${getTimestamp()}] [ERROR] Falha no boot: ${error}`));
 		process.exit(1);
 	}
 }
-
-process.on('SIGINT', async () => {
-	console.log(
-		chalk.yellow.bold(
-			`\n[${getTimestamp()}] [SERVER] Recebido sinal de interrupção. Encerrando...`,
-		),
-	);
-	try {
-		await dbConnect.disconnect();
-		console.log(
-			chalk.green.bold(`[${getTimestamp()}] [DB] Conexão com o banco de dados encerrada.`),
-		);
-	} catch (error) {
-		console.error(
-			chalk.red.bold(`[${getTimestamp()}] [ERROR] Erro ao desconectar do banco de dados: ${error}`),
-		);
-	}
-	process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-	console.log(
-		chalk.yellow.bold(`\n[${getTimestamp()}] [SERVER] Recebido sinal de término. Encerrando...`),
-	);
-	try {
-		await dbConnect.disconnect();
-		console.log(
-			chalk.green.bold(`[${getTimestamp()}] [DB] Conexão com o banco de dados encerrada.`),
-		);
-	} catch (error) {
-		console.error(
-			chalk.red.bold(`[${getTimestamp()}] [ERROR] Erro ao desconectar do banco de dados: ${error}`),
-		);
-	}
-	process.exit(0);
-});
 
 startServer();
