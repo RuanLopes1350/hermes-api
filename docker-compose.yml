@@ -28,6 +28,7 @@ services:
     build: 
       context: .
       dockerfile: dockerfile
+    command: ["npm", "run", "start:api"]
     container_name: hermes_api
     restart: always
     environment:
@@ -52,7 +53,7 @@ services:
     build:
       context: .
       dockerfile: dockerfile
-    command: npm run start:worker
+    command: ["npm", "run", "start:worker"]
     container_name: hermes_worker
     restart: always
     depends_on:
@@ -72,7 +73,6 @@ services:
       context: ../hermes-front
       dockerfile: dockerfile
       args:
-        # Passa a URL da API para o build do Next.js (Browser context)
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:1350}
     container_name: hermes_front
     restart: always
