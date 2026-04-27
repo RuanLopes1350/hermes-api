@@ -6,12 +6,12 @@ services:
     container_name: hermes_db
     restart: always
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-      TZ: ${TZ}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-hermes}
+      TZ: ${TZ:-UTC}
     ports:
-      - "${POSTGRES_PORT}:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data 
       
@@ -20,47 +20,68 @@ services:
     container_name: hermes_redis
     restart: always
     ports:
-      - "${REDIS_PORT}:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redisdata:/data
       
-  # api:
-  #   build: .
-  #   command: npm run start:api
-  #   container_name: hermes_api
-  #   restart: always
-  #   environment:
-  #     DB_HOST: db
-  #     DB_PORT: ${POSTGRES_PORT}
-  #     DB_USER: ${POSTGRES_USER}
-  #     DB_PASSWORD: ${POSTGRES_PASSWORD}
-  #     DB_NAME: ${POSTGRES_DB}
-  #     REDIS_HOST: redis
-  #     REDIS_PASSWORD: ${REDIS_PASSWORD}
-  #     REDIS_PORT: ${REDIS_PORT}
-  #   env_file:
-  #     - .env
-  #   ports:
-  #     - "1350:1350"
-  #   depends_on:
-  #     - db
-  #     - redis
+  api:
+    build: 
+      context: .
+      dockerfile: dockerfile
+    container_name: hermes_api
+    restart: always
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-hermes}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      PORT: 1350
+    env_file:
+      - .env
+    ports:
+      - "1350:1350"
+    depends_on:
+      - db
+      - redis
       
-  # worker:
-  #   build: .
-  #   command: npm run start:worker
-  #   container_name: hermes_worker
-  #   restart: always
-  #   depends_on:
-  #     - db
-  #     - redis
-  #   env_file:
-  #     - .env
-  #   environment:
-  #     DB_HOST: db
-  #     REDIS_HOST: redis
-  #     REDIS_PORT: ${REDIS_PORT}
-  #     REDIS_PASSWORD: ${REDIS_PASSWORD}
+  worker:
+    build:
+      context: .
+      dockerfile: dockerfile
+    command: npm run start:worker
+    container_name: hermes_worker
+    restart: always
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+  frontend:
+    build:
+      context: ../hermes-front
+      dockerfile: dockerfile
+      args:
+        # Passa a URL da API para o build do Next.js (Browser context)
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:1350}
+    container_name: hermes_front
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    environment:
+      - NODE_ENV=production
 
 volumes:
   pgdata:
