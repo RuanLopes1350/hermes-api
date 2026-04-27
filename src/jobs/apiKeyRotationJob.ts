@@ -53,6 +53,7 @@ export async function processApiKeyRotation() {
 			.select({
 				keyId: api_key.id,
 				keyName: api_key.name,
+				credentialId: api_key.credential_id, // BUSCA O VÍNCULO PARA ROTAÇÃO
 				expiresAt: api_key.expiresAt,
 				notificationSentAt: api_key.notification_sent_at,
 				serviceId: service.id,
@@ -104,7 +105,7 @@ export async function processApiKeyRotation() {
 							keyHash,
 							prefix,
 							serviceId: data.serviceId,
-							// A nova chave expira no mesmo tempo que a anterior durou (ex: +30 dias) ou null
+							credentialId: data.credentialId, // PASSA O VÍNCULO OBRIGATÓRIO
 							expiresAt: null 
 						});
 

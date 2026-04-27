@@ -24,43 +24,43 @@ services:
     volumes:
       - redisdata:/data
       
-  api:
-    build: .
-    command: npm run start:api
-    container_name: hermes_api
-    restart: always
-    environment:
-      DB_HOST: db
-      DB_PORT: ${POSTGRES_PORT}
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-      DB_NAME: ${POSTGRES_DB}
-      REDIS_HOST: redis
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      REDIS_PORT: ${REDIS_PORT}
-    env_file:
-      - .env
-    ports:
-      - "1350:1350"
-    depends_on:
-      - db
-      - redis
+  # api:
+  #   build: .
+  #   command: npm run start:api
+  #   container_name: hermes_api
+  #   restart: always
+  #   environment:
+  #     DB_HOST: db
+  #     DB_PORT: ${POSTGRES_PORT}
+  #     DB_USER: ${POSTGRES_USER}
+  #     DB_PASSWORD: ${POSTGRES_PASSWORD}
+  #     DB_NAME: ${POSTGRES_DB}
+  #     REDIS_HOST: redis
+  #     REDIS_PASSWORD: ${REDIS_PASSWORD}
+  #     REDIS_PORT: ${REDIS_PORT}
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - "1350:1350"
+  #   depends_on:
+  #     - db
+  #     - redis
       
-  worker:
-    build: .
-    command: npm run start:worker
-    container_name: hermes_worker
-    restart: always
-    depends_on:
-      - db
-      - redis
-    env_file:
-      - .env
-    environment:
-      DB_HOST: db
-      REDIS_HOST: redis
-      REDIS_PORT: ${REDIS_PORT}
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+  # worker:
+  #   build: .
+  #   command: npm run start:worker
+  #   container_name: hermes_worker
+  #   restart: always
+  #   depends_on:
+  #     - db
+  #     - redis
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     DB_HOST: db
+  #     REDIS_HOST: redis
+  #     REDIS_PORT: ${REDIS_PORT}
+  #     REDIS_PASSWORD: ${REDIS_PASSWORD}
 
 volumes:
   pgdata:
