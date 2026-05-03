@@ -18,23 +18,26 @@ export async function renderTemplate(
 		const mjmlWithVars = template(variables);
 
 		// 2. Transpila o MJML para HTML puro compatível com clientes de e-mail
-		const { html, errors } = mjml2html(mjmlWithVars, {
+		// mjml2html é síncrono na v4.x
+		const result = mjml2html(mjmlWithVars, {
 			validationLevel: 'soft',
 			minify: true,
 		});
 
-		if (errors.length > 0) {
+		const { html, errors } = result;
+
+		if (errors && errors.length > 0) {
 			console.warn(
 				chalk.yellow(
 					`[${getTimestamp()}] [RENDER] MJML com avisos:`,
-					errors.map((e) => e.message).join(', '),
+					errors.map((e: any) => e.message).join(', '),
 				),
 			);
 		}
 
 		return {
 			html,
-			errors: errors.map((e) => e.formattedMessage),
+			errors: errors ? errors.map((e: any) => e.formattedMessage) : [],
 		};
 	} catch (error: any) {
 		console.error(

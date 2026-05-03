@@ -15,28 +15,41 @@ export class TemplateDomainError extends DomainError {
 }
 
 class TemplateService {
-	// Cria um novo template HTML/Handlebars para um serviço.
+	// Cria um novo template HTML/Handlebars.
 	//
-	async createTemplate(serviceId: string, data: unknown, userId: string) {
+	async createTemplate(serviceId: string | null, data: unknown, userId: string) {
 		console.log(
 			chalk.blue.bold(
-				`[${getTimestamp()}] [INFO] [TemplateService] Criando template para serviço: ${serviceId}`,
+				`[${getTimestamp()}] [INFO] [TemplateService] Criando template. ServiceId: ${serviceId}`,
 			),
 		);
 
-		const serviceExists = await serviceRepository.findByIdAndOwner(serviceId, userId);
-		if (!serviceExists) {
-			throw new TemplateDomainError(
-				'Serviço não encontrado ou você não tem permissão para acessá-lo.',
-				HttpStatusCode.NOT_FOUND.code,
-				'SERVICE_NOT_FOUND',
-			);
+		const parsedData = createTemplateSchema.parse(data);
+
+		// Se não for global, exige serviceId válido
+		if (!parsedData.global) {
+			if (!serviceId) {
+				throw new TemplateDomainError(
+					'Um serviço deve ser selecionado para templates não-globais.',
+					HttpStatusCode.BAD_REQUEST.code,
+					'SERVICE_REQUIRED',
+				);
+			}
+			const serviceExists = await serviceRepository.findByIdAndOwner(serviceId, userId);
+			if (!serviceExists) {
+				throw new TemplateDomainError(
+					'Serviço não encontrado ou você não tem permissão.',
+					HttpStatusCode.NOT_FOUND.code,
+					'SERVICE_NOT_FOUND',
+				);
+			}
 		}
 
-		const parsedData = createTemplateSchema.parse(data);
 		const newTemplate = await templateRepository.create({
 			name: parsedData.name,
-			serviceId: serviceId,
+			serviceId: parsedData.global ? null : serviceId,
+			creatorId: userId,
+			global: parsedData.global,
 			subjectTemplate: parsedData.subject_template,
 			htmlContent: parsedData.html_content,
 			textContent: parsedData.text_content,
@@ -51,46 +64,27 @@ class TemplateService {
 	}
 
 	// Lista todos os templates ativos de um serviço.
-	//
 	async listTemplates(serviceId: string, userId: string) {
-		console.log(
-			chalk.blue.bold(
-				`[${getTimestamp()}] [INFO] [TemplateService] Listando templates do serviço: ${serviceId}`,
-			),
-		);
-
 		const serviceExists = await serviceRepository.findByIdAndOwner(serviceId, userId);
 		if (!serviceExists) {
 			throw new TemplateDomainError(
-				'Serviço não encontrado ou você não tem permissão para acessá-lo.',
+				'Serviço não encontrado.',
 				HttpStatusCode.NOT_FOUND.code,
 				'SERVICE_NOT_FOUND',
 			);
 		}
-
 		return templateRepository.findAllByService(serviceId);
 	}
 
-	// Busca um template por ID, verificando que pertence ao serviço do usuário.
-	//
-	async getTemplate(serviceId: string, templateId: string, userId: string) {
-		console.log(
-			chalk.blue.bold(
-				`[${getTimestamp()}] [INFO] [TemplateService] Buscando template: ${templateId}`,
-			),
-		);
+	// Lista todos os templates de um usuário (em todos os serviços + globais).
+	async listAllTemplatesByUser(userId: string) {
+		return templateRepository.findAllByUser(userId);
+	}
 
-		const serviceExists = await serviceRepository.findByIdAndOwner(serviceId, userId);
-		if (!serviceExists) {
-			throw new TemplateDomainError(
-				'Serviço não encontrado ou você não tem permissão para acessá-lo.',
-				HttpStatusCode.NOT_FOUND.code,
-				'SERVICE_NOT_FOUND',
-			);
-		}
-
-		const found = await templateRepository.findById(templateId);
-		if (!found || found.service_id !== serviceId) {
+	// Busca um template por ID (Global).
+	async getTemplateById(templateId: string, userId: string) {
+		const found = await templateRepository.findByIdAndUser(templateId, userId);
+		if (!found) {
 			throw new TemplateDomainError(
 				'Template não encontrado.',
 				HttpStatusCode.NOT_FOUND.code,
@@ -100,24 +94,69 @@ class TemplateService {
 		return found;
 	}
 
-	// Atualiza campos de um template.
-	//
-	async updateTemplate(serviceId: string, templateId: string, data: unknown, userId: string) {
-		console.log(
-			chalk.blue.bold(
-				`[${getTimestamp()}] [INFO] [TemplateService] Atualizando template: ${templateId}`,
-			),
-		);
+	// Busca um template por ID, verificando que pertence ao serviço do usuário.
+	async getTemplate(serviceId: string, templateId: string, userId: string) {
+		const serviceExists = await serviceRepository.findByIdAndOwner(serviceId, userId);
+		if (!serviceExists) {
+			throw new TemplateDomainError(
+				'Serviço não encontrado.',
+				HttpStatusCode.NOT_FOUND.code,
+				'SERVICE_NOT_FOUND',
+			);
+		}
 
+		const found = await templateRepository.findById(templateId);
+		if (!found || (found.service_id !== serviceId && !found.global)) {
+			throw new TemplateDomainError(
+				'Template não encontrado.',
+				HttpStatusCode.NOT_FOUND.code,
+				'TEMPLATE_NOT_FOUND',
+			);
+		}
+		return found;
+	}
+
+	// Verifica se o usuário pode gerenciar (editar/deletar) o template.
+	private async ensureOwnership(templateId: string, userId: string) {
+		const found = await templateRepository.findById(templateId);
+		if (!found) {
+			throw new TemplateDomainError(
+				'Template não encontrado.',
+				HttpStatusCode.NOT_FOUND.code,
+				'TEMPLATE_NOT_FOUND',
+			);
+		}
+
+		// Se tem service_id, verifica se o usuário é dono do serviço
+		if (found.service_id) {
+			const srv = await serviceRepository.findByIdAndOwner(found.service_id, userId);
+			if (srv) return found;
+		}
+
+		// Se é o criador do template
+		if (found.creator_id === userId) return found;
+
+		throw new TemplateDomainError(
+			'Você não tem permissão para gerenciar este template.',
+			HttpStatusCode.FORBIDDEN.code,
+			'ACCESS_DENIED',
+		);
+	}
+
+	// Atualiza campos de um template.
+	async updateTemplate(serviceId: string | null, templateId: string, data: unknown, userId: string) {
 		// Verifica propriedade
-		await this.getTemplate(serviceId, templateId, userId);
+		await this.ensureOwnership(templateId, userId);
 
 		const parsedData = updateTemplateSchema.parse(data);
+		
 		const updated = await templateRepository.updateById(templateId, {
 			name: parsedData.name,
 			subject_template: parsedData.subject_template,
 			html_content: parsedData.html_content,
 			text_content: parsedData.text_content,
+			global: parsedData.global,
+			service_id: parsedData.service_id
 		});
 
 		if (!updated) {
@@ -128,40 +167,14 @@ class TemplateService {
 			);
 		}
 
-		console.log(
-			chalk.green.bold(
-				`[${getTimestamp()}] [SUCCESS] [TemplateService] Template atualizado: ${templateId}`,
-			),
-		);
 		return updated;
 	}
 
 	// Soft delete de um template.
-	//
-	async deleteTemplate(serviceId: string, templateId: string, userId: string) {
-		console.log(
-			chalk.blue.bold(
-				`[${getTimestamp()}] [INFO] [TemplateService] Deletando template: ${templateId}`,
-			),
-		);
-
-		await this.getTemplate(serviceId, templateId, userId);
-
+	async deleteTemplate(templateId: string, userId: string) {
+		await this.ensureOwnership(templateId, userId);
 		const deleted = await templateRepository.softDeleteById(templateId);
-		if (!deleted) {
-			throw new TemplateDomainError(
-				'Template não encontrado.',
-				HttpStatusCode.NOT_FOUND.code,
-				'TEMPLATE_NOT_FOUND',
-			);
-		}
-
-		console.log(
-			chalk.green.bold(
-				`[${getTimestamp()}] [SUCCESS] [TemplateService] Template soft-deletado: ${templateId}`,
-			),
-		);
-		return { id: deleted.id };
+		return { id: deleted!.id };
 	}
 }
 

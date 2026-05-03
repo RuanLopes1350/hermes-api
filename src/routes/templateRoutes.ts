@@ -1,20 +1,60 @@
 import { Router } from 'express';
 import templateController from '../controller/templateController.js';
 import { requireAuth } from '../middlewares/requireAuth.js';
+import { templateApiRateLimiter } from '../middlewares/rateLimitingMiddleware.js';
 
 const router = Router();
 
-// Rota de Preview (MJML -> HTML em tempo real)
-router.post(
-	'/services/:serviceId/templates/preview',
+// Rotas Globais (Gerenciamento simplificado)
+router.get(
+	'/templates',
 	requireAuth,
-	templateController.preview.bind(templateController),
+	templateApiRateLimiter,
+	templateController.listAll.bind(templateController),
+);
+
+router.get(
+	'/templates/:id',
+	requireAuth,
+	templateApiRateLimiter,
+	templateController.getOneGlobal.bind(templateController),
 );
 
 router.post(
-	'/services/:serviceId/templates',
+	'/templates',
 	requireAuth,
+	templateApiRateLimiter,
 	templateController.create.bind(templateController),
+);
+
+router.patch(
+	'/templates/:id',
+	requireAuth,
+	templateApiRateLimiter,
+	templateController.update.bind(templateController),
+);
+
+router.delete(
+	'/templates/:id',
+	requireAuth,
+	templateApiRateLimiter,
+	templateController.remove.bind(templateController),
+);
+
+// Rota de Preview Global
+router.post(
+	'/templates/preview',
+	requireAuth,
+	templateApiRateLimiter,
+	templateController.preview.bind(templateController),
+);
+
+// Rotas vinculadas a serviços (Retrocompatibilidade e Contexto)
+router.post(
+	'/services/:serviceId/templates/preview',
+	requireAuth,
+	templateApiRateLimiter,
+	templateController.preview.bind(templateController),
 );
 
 router.get(
@@ -23,22 +63,10 @@ router.get(
 	templateController.list.bind(templateController),
 );
 
-router.get(
-	'/services/:serviceId/templates/:id',
+router.post(
+	'/services/:serviceId/templates',
 	requireAuth,
-	templateController.getOne.bind(templateController),
-);
-
-router.patch(
-	'/services/:serviceId/templates/:id',
-	requireAuth,
-	templateController.update.bind(templateController),
-);
-
-router.delete(
-	'/services/:serviceId/templates/:id',
-	requireAuth,
-	templateController.remove.bind(templateController),
+	templateController.create.bind(templateController),
 );
 
 export default router;

@@ -4,40 +4,33 @@ import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import templateService from '../service/templateService.js';
 import CommonResponse from '../utils/helpers/commonResponse.js';
 import { renderTemplate } from '../utils/renderTemplate.js';
+import { sanitizeHtml } from '../utils/helpers/sanitizer.js';
 
 class TemplateController {
 	// POST /api/services/:serviceId/templates/preview
-	// Renderiza um MJML + Handlebars em tempo real para o frontend
 	async preview(req: Request, res: Response, next: NextFunction) {
-		console.log(
-			chalk.cyan(`[${getTimestamp()}] [POST] /api/services/${req.params.serviceId}/templates/preview`),
-		);
 		try {
 			const { mjml, variables } = req.body;
-			
-			if (!mjml) {
-				return res.status(400).json({ error: 'O conteúdo MJML é obrigatório para o preview.' });
-			}
-
+			if (!mjml) return res.status(400).json({ error: 'O conteúdo MJML é obrigatório.' });
 			const result = await renderTemplate(mjml, variables || {});
 			
-			return res.json({
-				html: result.html,
-				errors: result.errors,
-				renderedAt: new Date()
+			// Sanitização contra XSS
+			const safeHtml = sanitizeHtml(result.html);
+			
+			return res.json({ 
+				html: safeHtml, 
+				errors: result.errors, 
+				renderedAt: new Date() 
 			});
 		} catch (error) {
 			next(error);
 		}
 	}
 
-	// POST /api/services/:serviceId/templates
+	// POST /api/services/:serviceId/templates OR POST /api/templates
 	async create(req: Request, res: Response, next: NextFunction) {
-		console.log(
-			chalk.cyan(`[${getTimestamp()}] [POST] /api/services/${req.params.serviceId}/templates`),
-		);
 		try {
-			const serviceId = String(req.params.serviceId);
+			const serviceId = req.params.serviceId || req.body.service_id || null;
 			const userId = req.user!.id;
 			const newTemplate = await templateService.createTemplate(serviceId, req.body, userId);
 			return CommonResponse.created(res, newTemplate, 'Template criado com sucesso!');
@@ -46,53 +39,33 @@ class TemplateController {
 		}
 	}
 
-	// GET /api/services/:serviceId/templates
-	async list(req: Request, res: Response, next: NextFunction) {
-		console.log(
-			chalk.cyan(`[${getTimestamp()}] [GET] /api/services/${req.params.serviceId}/templates`),
-		);
+	// GET /api/templates (Global)
+	async listAll(req: Request, res: Response, next: NextFunction) {
 		try {
-			const serviceId = String(req.params.serviceId);
 			const userId = req.user!.id;
-			const templates = await templateService.listTemplates(serviceId, userId);
-			return CommonResponse.success(
-				res,
-				templates,
-				200,
-				`${templates.length} template(s) encontrado(s).`,
-			);
+			const templates = await templateService.listAllTemplatesByUser(userId);
+			return CommonResponse.success(res, templates, 200, `${templates.length} template(s) encontrado(s).`);
 		} catch (error) {
 			next(error);
 		}
 	}
 
-	// GET /api/services/:serviceId/templates/:id
-	async getOne(req: Request, res: Response, next: NextFunction) {
-		console.log(
-			chalk.cyan(
-				`[${getTimestamp()}] [GET] /api/services/${req.params.serviceId}/templates/${req.params.id}`,
-			),
-		);
+	// GET /api/templates/:id (Global)
+	async getOneGlobal(req: Request, res: Response, next: NextFunction) {
 		try {
-			const serviceId = String(req.params.serviceId);
 			const id = String(req.params.id);
 			const userId = req.user!.id;
-			const found = await templateService.getTemplate(serviceId, id, userId);
+			const found = await templateService.getTemplateById(id, userId);
 			return CommonResponse.success(res, found, 200, 'Template encontrado.');
 		} catch (error) {
 			next(error);
 		}
 	}
 
-	// PATCH /api/services/:serviceId/templates/:id
+	// PATCH /api/templates/:id
 	async update(req: Request, res: Response, next: NextFunction) {
-		console.log(
-			chalk.cyan(
-				`[${getTimestamp()}] [PATCH] /api/services/${req.params.serviceId}/templates/${req.params.id}`,
-			),
-		);
 		try {
-			const serviceId = String(req.params.serviceId);
+			const serviceId = req.params.serviceId || req.body.service_id || null;
 			const id = String(req.params.id);
 			const userId = req.user!.id;
 			const updated = await templateService.updateTemplate(serviceId, id, req.body, userId);
@@ -102,19 +75,25 @@ class TemplateController {
 		}
 	}
 
-	// DELETE /api/services/:serviceId/templates/:id
+	// DELETE /api/templates/:id
 	async remove(req: Request, res: Response, next: NextFunction) {
-		console.log(
-			chalk.cyan(
-				`[${getTimestamp()}] [DELETE] /api/services/${req.params.serviceId}/templates/${req.params.id}`,
-			),
-		);
 		try {
-			const serviceId = String(req.params.serviceId);
 			const id = String(req.params.id);
 			const userId = req.user!.id;
-			const result = await templateService.deleteTemplate(serviceId, id, userId);
+			const result = await templateService.deleteTemplate(id, userId);
 			return CommonResponse.success(res, result, 200, 'Template removido com sucesso.');
+		} catch (error) {
+			next(error);
+		}
+	}
+
+	// GET /api/services/:serviceId/templates
+	async list(req: Request, res: Response, next: NextFunction) {
+		try {
+			const serviceId = String(req.params.serviceId);
+			const userId = req.user!.id;
+			const templates = await templateService.listTemplates(serviceId, userId);
+			return CommonResponse.success(res, templates, 200, `${templates.length} template(s).`);
 		} catch (error) {
 			next(error);
 		}

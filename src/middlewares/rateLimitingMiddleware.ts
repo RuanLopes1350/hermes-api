@@ -17,3 +17,12 @@ export const emailApiRateLimiter = rateLimit({
     // Desabilita as validações que causam o erro ERR_ERL_KEY_GEN_IPV6
     validate: false
 });
+
+export const templateApiRateLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minuto
+    max: 20, // limite de 20 requisições por usuário para operações pesadas
+    message: "Muitas requisições de template. Tente novamente em um minuto.",
+    standardHeaders: true,
+    legacyHeaders: false,
+    validate: false
+});

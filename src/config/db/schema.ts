@@ -135,6 +135,10 @@ export const template = pgTable('template', {
 	id: text('id').primaryKey().notNull(),
 	name: varchar('name').notNull(),
 	service_id: text('service_id').references(() => service.id),
+	creator_id: text('creator_id')
+		.notNull()
+		.references(() => user.id),
+	global: boolean('global').notNull().default(false),
 	subject_template: varchar('subject_template'),
 	html_content: text('html_content').notNull(),
 	text_content: text('text_content'),

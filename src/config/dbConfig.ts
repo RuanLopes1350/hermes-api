@@ -47,11 +47,13 @@ export class dbConnect {
 			console.log(
 				chalk.green.bold(`[${getTimestamp()}] [SUCCESS] Conectado ao banco de dados com sucesso!`),
 			);
-			console.log(
-				chalk.magenta.bold(
-					`[${getTimestamp()}] [DB] Banco de dados rodando em: ${chalk.cyan.bold(db_urlFiltered)}`,
-				),
-			);
+			if (process.env.NODE_ENV !== 'production') {
+				console.log(
+					chalk.magenta.bold(
+						`[${getTimestamp()}] [DB] Banco de dados rodando em: ${chalk.cyan.bold(db_host)}:${db_port}`,
+					),
+				);
+			}
 		} catch (error) {
 			console.error(
 				chalk.red.bold(
