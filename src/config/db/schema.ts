@@ -124,7 +124,7 @@ export const api_key = pgTable('api_key', {
 		.references(() => service.id, { onDelete: 'cascade' }),
 	credential_id: text('credential_id')
 		.notNull()
-		.references(() => credential.id),
+		.references(() => credential.id, { onDelete: 'cascade' }),
 	is_active: boolean('is_active').notNull().default(true),
 	last_used_at: timestamp('last_used_at'),
 	expiresAt: timestamp('expires_at'),

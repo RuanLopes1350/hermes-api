@@ -120,17 +120,16 @@ class CredentialRepository {
 		}
 	}
 
-	// Soft delete de uma credencial.
-	async softDeleteById(id: string) {
+	// Delete real de uma credencial para trigger do cascade no banco.
+	async deleteById(id: string) {
 		try {
 			const [deleted] = await db
-				.update(credential)
-				.set({ deletedAt: new Date() })
-				.where(and(eq(credential.id, id), isNull(credential.deletedAt)))
+				.delete(credential)
+				.where(eq(credential.id, id))
 				.returning({ id: credential.id });
 			return deleted ?? null;
 		} catch (error) {
-			throw parseDatabaseError(error, 'CredentialRepository.softDeleteById');
+			throw parseDatabaseError(error, 'CredentialRepository.deleteById');
 		}
 	}
 }

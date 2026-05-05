@@ -160,7 +160,7 @@ class CredentialService {
 
 	async deleteCredential(serviceId: string, credentialId: string, userId: string) {
 		await this.getCredential(serviceId, credentialId, userId);
-		return await credentialRepository.softDeleteById(credentialId);
+		return await credentialRepository.deleteById(credentialId);
 	}
 }
 
