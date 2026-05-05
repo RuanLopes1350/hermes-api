@@ -82,10 +82,10 @@ export const service = pgTable('service', {
 	name: varchar('name').notNull(),
 	creator_id: text('creator_id')
 		.notNull()
-		.references(() => user.id),
+		.references(() => user.id, { onDelete: 'cascade' }),
 	owner_id: text('owner_id')
 		.notNull()
-		.references(() => user.id),
+		.references(() => user.id, { onDelete: 'cascade' }),
 	settings: jsonb('settings').default('{}'),
 	createdAt: timestamp('created_at').notNull().defaultNow(),
 	updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -106,7 +106,7 @@ export const credential = pgTable('credential', {
 	refresh_token: text('refresh_token'),
 	service_id: text('service_id')
 		.notNull()
-		.references(() => service.id),
+		.references(() => service.id, { onDelete: 'cascade' }),
 	createdAt: timestamp('created_at').notNull().defaultNow(),
 	updatedAt: timestamp('updated_at').notNull().defaultNow(),
 	deletedAt: timestamp('deleted_at'),
@@ -119,7 +119,7 @@ export const api_key = pgTable('api_key', {
 	prefix: varchar('prefix').notNull(),
 	service_id: text('service_id')
 		.notNull()
-		.references(() => service.id),
+		.references(() => service.id, { onDelete: 'cascade' }),
 	credential_id: text('credential_id')
 		.notNull()
 		.references(() => credential.id),
@@ -134,10 +134,10 @@ export const api_key = pgTable('api_key', {
 export const template = pgTable('template', {
 	id: text('id').primaryKey().notNull(),
 	name: varchar('name').notNull(),
-	service_id: text('service_id').references(() => service.id),
+	service_id: text('service_id').references(() => service.id, { onDelete: 'cascade' }),
 	creator_id: text('creator_id')
 		.notNull()
-		.references(() => user.id),
+		.references(() => user.id, { onDelete: 'cascade' }),
 	global: boolean('global').notNull().default(false),
 	subject_template: varchar('subject_template'),
 	html_content: text('html_content').notNull(),
@@ -151,9 +151,9 @@ export const email = pgTable('email', {
 	id: text('id').primaryKey().notNull(),
 	service_id: text('service_id')
 		.notNull()
-		.references(() => service.id),
-	credential_id: text('credential_id').references(() => credential.id),
-	service_template_id: text('service_template_id').references(() => template.id),
+		.references(() => service.id, { onDelete: 'cascade' }),
+	credential_id: text('credential_id').references(() => credential.id, { onDelete: 'set null' }),
+	service_template_id: text('service_template_id').references(() => template.id, { onDelete: 'set null' }),
 	subject: varchar('subject').notNull(),
 	recipient_to: varchar('recipient_to').notNull(),
 	body: text('body'),

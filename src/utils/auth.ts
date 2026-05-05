@@ -9,7 +9,7 @@ dotenv.config({ quiet: true });
 
 const nodeEnv = process.env.NODE_ENV || 'development';
 const secret = process.env.AUTH_SECRET;
-const baseURL = process.env.AUTH_BASE_URL || 'http://localhost:1350';
+const baseURL = process.env.AUTH_BASE_URL || 'http://localhost:3001';
 
 const trustedOrigins = (process.env.AUTH_TRUSTED_ORIGINS || 'http://localhost:3000')
 	.split(',')

@@ -7,12 +7,13 @@ import { toNodeHandler } from 'better-auth/node';
 import { auth } from './utils/auth.js';
 import { isAPIError } from 'better-auth/api';
 import { errorHandler } from './middlewares/errorHandler.js';
+import { requestLogger } from './middlewares/logMiddleware.js';
 
 // Importação das rotas
 import userRouter from './routes/userRoutes.js';
 import serviceRouter from './routes/serviceRoutes.js';
 import apiKeyRouter from './routes/apiKeyRoutes.js';
-import credentialRouter from './routes/credentialRoutes.js';
+import credentialRouter from './routes/credentialRouter.js'; // Note: Verifique se é .js no seu local, aqui mantive o padrão
 import templateRouter from './routes/templateRoutes.js';
 import emailRouter from './routes/emailRoutes.js';
 import logRouter from './routes/logRoutes.js';
@@ -46,7 +47,10 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Middleware para log de requisições HTTP
+// Middleware para persistência de logs no Banco de Dados
+app.use(requestLogger);
+
+// Middleware para log de requisições HTTP no Console
 app.use((req, res, next) => {
 	const start = process.hrtime();
 	res.on('finish', () => {
@@ -82,12 +86,12 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api', userRouter);
-// Nota: Certifique-se de que o import de serviceRouter está correto conforme seu arquivo físico
 import serviceRoutes from './routes/serviceRoutes.js'; 
 app.use('/api', serviceRoutes);
 app.use('/api', apiKeyRouter);
 app.use('/api', logRouter);
-app.use('/api', credentialRouter);
+import credentialRoutes from './routes/credentialRoutes.js';
+app.use('/api', credentialRoutes);
 app.use('/api', templateRouter);
 app.use('/api', emailRouter);
 
