@@ -2,7 +2,10 @@ import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import templateRepository from '../repository/templateRepository.js';
 import serviceRepository from '../repository/serviceRepository.js';
-import { createTemplateSchema, updateTemplateSchema } from '../utils/validation/templateValidation.js';
+import {
+	createTemplateSchema,
+	updateTemplateSchema,
+} from '../utils/validation/templateValidation.js';
 import HttpStatusCode from '../utils/helpers/httpStatusCode.js';
 import { DomainError } from '../utils/helpers/domainError.js';
 
@@ -16,7 +19,6 @@ export class TemplateDomainError extends DomainError {
 
 class TemplateService {
 	// Cria um novo template HTML/Handlebars.
-	//
 	async createTemplate(serviceId: string | null, data: unknown, userId: string) {
 		console.log(
 			chalk.blue.bold(
@@ -144,19 +146,24 @@ class TemplateService {
 	}
 
 	// Atualiza campos de um template.
-	async updateTemplate(serviceId: string | null, templateId: string, data: unknown, userId: string) {
+	async updateTemplate(
+		serviceId: string | null,
+		templateId: string,
+		data: unknown,
+		userId: string,
+	) {
 		// Verifica propriedade
 		await this.ensureOwnership(templateId, userId);
 
 		const parsedData = updateTemplateSchema.parse(data);
-		
+
 		const updated = await templateRepository.updateById(templateId, {
 			name: parsedData.name,
 			subject_template: parsedData.subject_template,
 			html_content: parsedData.html_content,
 			text_content: parsedData.text_content,
 			global: parsedData.global,
-			service_id: parsedData.service_id
+			service_id: parsedData.service_id,
 		});
 
 		if (!updated) {

@@ -2,10 +2,9 @@ import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import emailRepository from '../repository/emailRepository.js';
 import serviceRepository from '../repository/serviceRepository.js';
-import credentialRepository from '../repository/credentialRepository.js';
 import templateRepository from '../repository/templateRepository.js';
 import { createEmailSchema } from '../utils/validation/emailValidation.js';
-import { emailQueue } from '../queue/emailQueue.js';
+import { emailQueue, priorityMap } from '../queue/emailQueue.js';
 import HttpStatusCode from '../utils/helpers/httpStatusCode.js';
 import { DomainError } from '../utils/helpers/domainError.js';
 
@@ -25,7 +24,7 @@ class EmailService {
         serviceId: string, 
         data: unknown, 
         apiKeyServiceId: string,
-        apiKeyCredentialId: string // NOVO: Credencial obrigatória da chave
+        apiKeyCredentialId: string
     ) {
 		console.log(
 			chalk.blue.bold(
@@ -33,7 +32,7 @@ class EmailService {
 			),
 		);
 
-		// 1. Validação de Segurança: API Key pertence ao serviço da rota?
+		// 1. Validação de Segurança
 		if (apiKeyServiceId !== serviceId) {
 			throw new EmailDomainError(
 				'Esta API Key não tem permissão para enviar e-mails neste serviço.',
@@ -44,7 +43,11 @@ class EmailService {
 
 		const parsedData = createEmailSchema.parse(data);
 
-		// 2. Validação de Template (se informado)
+		// 2. Buscar Serviço para obter prioridade padrão se necessário
+		const serviceData = await serviceRepository.findByIdAndOwner(serviceId, (null as any)); // Omitimos owner check aqui pois apiKey já valida
+		const defaultPriority = (serviceData?.settings as any)?.defaultPriority || 'medium';
+
+		// 3. Validação de Template
 		if (parsedData.template_id) {
 			const tmpl = await templateRepository.findById(parsedData.template_id);
 			if (!tmpl || tmpl.service_id !== serviceId) {
@@ -56,20 +59,24 @@ class EmailService {
 			}
 		}
 
-		// 3. Persistência
-		// IMPORTANTE: Ignoramos o credential_id do body (se enviado) e usamos o da API KEY
+		// 4. Persistência
+		const finalPriority = (parsedData as any).priority || defaultPriority;
+		
 		const newEmail = await emailRepository.create({
 			serviceId: serviceId,
-			credentialId: apiKeyCredentialId, // FORÇA O USO DA CREDENCIAL DA CHAVE
+			credentialId: apiKeyCredentialId,
 			templateId: parsedData.template_id,
 			subject: parsedData.subject,
 			recipientTo: parsedData.recipient_to,
 			body: parsedData.body,
 			variables: parsedData.variables,
 			scheduledAt: parsedData.scheduled_at ? new Date(parsedData.scheduled_at) : undefined,
+			priority: finalPriority,
 		});
 
-		// 4. Despacha para a Fila (BullMQ)
+		// 5. Despacha para a Fila (BullMQ) com peso numérico
+		const bullPriority = (priorityMap as any)[finalPriority] || 5;
+
 		await emailQueue.add(
 			'sendEmailJob',
 			{
@@ -78,6 +85,7 @@ class EmailService {
 				variables: parsedData.variables,
 			},
 			{
+				priority: bullPriority,
 				delay: parsedData.scheduled_at
 					? Math.max(0, new Date(parsedData.scheduled_at).getTime() - Date.now())
 					: 0,
@@ -86,7 +94,7 @@ class EmailService {
 
 		console.log(
 			chalk.green.bold(
-				`[${getTimestamp()}] [SUCCESS] [EmailService] E-mail enfileirado: ${newEmail.id} vinculado à credencial ${apiKeyCredentialId}`,
+				`[${getTimestamp()}] [SUCCESS] [EmailService] E-mail enfileirado: ${newEmail.id} (Prioridade: ${finalPriority})`,
 			),
 		);
 		return newEmail;

@@ -75,6 +75,8 @@ export const mail_status_enum = pgEnum('mail_status_enum', [
 	'retrying',
 ]);
 
+export const priority_enum = pgEnum('priority_enum', ['high', 'medium', 'low']);
+
 export const auth_type_enum = pgEnum('auth_type_enum', ['plain', 'oauth2']);
 
 export const service = pgTable('service', {
@@ -159,6 +161,7 @@ export const email = pgTable('email', {
 	body: text('body'),
 	variables: jsonb('variables').default('{}'),
 	status: mail_status_enum('status').notNull().default('pending'),
+	priority: priority_enum('priority').notNull().default('medium'),
 	retry_count: integer('retry_count').notNull().default(0),
 	next_retry_at: timestamp('next_retry_at'),
 	scheduled_at: timestamp('scheduled_at'),

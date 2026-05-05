@@ -13,14 +13,14 @@ class TemplateController {
 			const { mjml, variables } = req.body;
 			if (!mjml) return res.status(400).json({ error: 'O conteúdo MJML é obrigatório.' });
 			const result = await renderTemplate(mjml, variables || {});
-			
+
 			// Sanitização contra XSS
 			const safeHtml = sanitizeHtml(result.html);
-			
-			return res.json({ 
-				html: safeHtml, 
-				errors: result.errors, 
-				renderedAt: new Date() 
+
+			return res.json({
+				html: safeHtml,
+				errors: result.errors,
+				renderedAt: new Date(),
 			});
 		} catch (error) {
 			next(error);
@@ -44,7 +44,12 @@ class TemplateController {
 		try {
 			const userId = req.user!.id;
 			const templates = await templateService.listAllTemplatesByUser(userId);
-			return CommonResponse.success(res, templates, 200, `${templates.length} template(s) encontrado(s).`);
+			return CommonResponse.success(
+				res,
+				templates,
+				200,
+				`${templates.length} template(s) encontrado(s).`,
+			);
 		} catch (error) {
 			next(error);
 		}

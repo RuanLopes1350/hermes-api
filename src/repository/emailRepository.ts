@@ -8,7 +8,7 @@ import { parseDatabaseError } from '../utils/helpers/dbErrors.js';
 
 class EmailRepository {
 	// Registra um novo e-mail na fila com status 'pending'.
-	// O envio real será feito pelo worker BullMQ (implementação futura).
+	// O envio real será feito pelo worker BullMQ.
 	async create(data: {
 		serviceId: string;
 		credentialId?: string;
@@ -18,6 +18,7 @@ class EmailRepository {
 		body?: string;
 		variables?: Record<string, any>;
 		scheduledAt?: Date;
+		priority?: 'high' | 'medium' | 'low';
 	}) {
 		console.log(
 			chalk.magenta(`[${getTimestamp()}] [DB] [EmailRepository] Inserindo e-mail na fila...`),
@@ -35,7 +36,7 @@ class EmailRepository {
 					body: data.body,
 					variables: data.variables ?? {},
 					scheduled_at: data.scheduledAt,
-					// status padrão é 'pending' (definido no schema)
+					priority: data.priority ?? 'medium',
 				})
 				.returning();
 			return newEmail;
@@ -45,8 +46,6 @@ class EmailRepository {
 	}
 
 	// Lista os e-mails de um serviço, com filtro opcional de status.
-	// Ordenados por data de criação decrescente (mais recentes primeiro).
-	// Exclui soft-deletados.
 	async findAllByService(serviceId: string, status?: string) {
 		console.log(
 			chalk.magenta(
@@ -56,7 +55,6 @@ class EmailRepository {
 		try {
 			const conditions = [eq(email.service_id, serviceId), isNull(email.deletedAt)];
 
-			// Filtro de status opcional (pending, sent, failed, retrying)
 			if (status) {
 				conditions.push(eq(email.status, status as any));
 			}
@@ -86,8 +84,7 @@ class EmailRepository {
 		}
 	}
 
-	// Soft delete de um e-mail — só deve ser chamado se status for 'pending'.
-	// A verificação de status é feita no Service antes de chamar aqui.
+	// Soft delete de um e-mail.
 	async softDeleteById(id: string) {
 		console.log(
 			chalk.magenta(`[${getTimestamp()}] [DB] [EmailRepository] Soft delete do e-mail: ${id}`),
@@ -105,7 +102,6 @@ class EmailRepository {
 	}
 
 	// Atualiza status, retry_count, error_log e sent_at.
-	// Uso exclusivo interno do worker BullMQ (implementação futura).
 	async updateStatus(
 		id: string,
 		data: {
