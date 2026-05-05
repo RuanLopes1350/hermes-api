@@ -57,6 +57,9 @@ export const auth = betterAuth({
 		enabled: true,
 		autoSignIn: nodeEnv === 'development',
 	},
+	advanced: {
+		useSecureCookies: process.env.NODE_ENV === 'production',
+	},
 
 	trustedOrigins: trustedOrigins,
 });
