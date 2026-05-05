@@ -11,6 +11,3 @@ RUN npm ci
 COPY . .
 
 RUN npm run build
-
-# Removido o CMD fixo para permitir que o docker-compose defina
-# se este container será uma 'api' ou um 'worker'.
