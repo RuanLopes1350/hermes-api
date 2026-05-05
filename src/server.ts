@@ -13,7 +13,7 @@ import { requestLogger } from './middlewares/logMiddleware.js';
 import userRouter from './routes/userRoutes.js';
 import serviceRouter from './routes/serviceRoutes.js';
 import apiKeyRouter from './routes/apiKeyRoutes.js';
-import credentialRouter from './routes/credentialRouter.js'; // Note: Verifique se é .js no seu local, aqui mantive o padrão
+import credentialRouter from './routes/credentialRoutes.js';
 import templateRouter from './routes/templateRoutes.js';
 import emailRouter from './routes/emailRoutes.js';
 import logRouter from './routes/logRoutes.js';
