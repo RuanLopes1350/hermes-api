@@ -52,9 +52,7 @@ export function decryptPasskey(ciphertext: string): string {
 }
 
 class CredentialService {
-	/**
-	 * Cria uma credencial e GERA AUTOMATICAMENTE uma API Key vinculada a ela.
-	 */
+	// Cria uma credencial e GERA AUTOMATICAMENTE uma API Key vinculada a ela.
 	async createCredential(serviceId: string, data: unknown, userId: string) {
 		console.log(chalk.blue.bold(`[${getTimestamp()}] [INFO] [CredentialService] Criando credencial...`));
 
