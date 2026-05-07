@@ -27,6 +27,7 @@ const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
 const adminPassword = process.env.ADMIN_PASSWORD;
 
 const app = express();
+app.set('trust proxy', true);
 const PORT = process.env.PORT || 1350;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 

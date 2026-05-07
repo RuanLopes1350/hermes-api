@@ -58,8 +58,13 @@ export const auth = betterAuth({
 		autoSignIn: nodeEnv === 'development',
 	},
 	advanced: {
-		useSecureCookies: process.env.NODE_ENV === 'production',
+		useSecureCookies: process.env.AUTH_SECURE_COOKIES === 'true' || (process.env.NODE_ENV === 'production' && process.env.AUTH_SECURE_COOKIES !== 'false'),
+		ipAddress: {
+			ipAddressHeaders: ['x-forwarded-for', 'cf-connecting-ip', 'x-real-ip'],
+		},
 	},
-
+	cookie: {
+		domain: process.env.AUTH_COOKIE_DOMAIN || undefined,
+	},
 	trustedOrigins: trustedOrigins,
 });
