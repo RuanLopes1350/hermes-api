@@ -41,15 +41,6 @@ export const auth = betterAuth({
 			},
 		},
 	},
-	session: {
-		modelName: 'session',
-	},
-	account: {
-		modelName: 'account',
-	},
-	verification: {
-		modelName: 'verification',
-	},
 
 	plugins: [bearer()],
 
@@ -62,9 +53,15 @@ export const auth = betterAuth({
 		ipAddress: {
 			ipAddressHeaders: ['x-forwarded-for', 'cf-connecting-ip', 'x-real-ip'],
 		},
-	},
-	cookie: {
-		domain: process.env.AUTH_COOKIE_DOMAIN || undefined,
+		crossSubDomainCookies: {
+			enabled: !!process.env.AUTH_COOKIE_DOMAIN,
+			domain: process.env.AUTH_COOKIE_DOMAIN || undefined,
+		},
+		defaultCookieAttributes: {
+			sameSite: "none",
+			secure: true,
+			httpOnly: true,
+		}
 	},
 	trustedOrigins: trustedOrigins,
 });
