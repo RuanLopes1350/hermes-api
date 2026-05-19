@@ -57,28 +57,28 @@ class ApiKeyRepository {
 		}
 	}
 
-    // NOVO: Lista todas as API Keys de um usuário (em todos os seus serviços)
-    async findAllByUser(userId: string) {
-        try {
-            return await db
-                .select({
-                    id: api_key.id,
-                    name: api_key.name,
-                    prefix: api_key.prefix,
-                    is_active: api_key.is_active,
-                    credential_id: api_key.credential_id,
-                    service_id: api_key.service_id, // Útil para o dashboard global
-                    last_used_at: api_key.last_used_at,
-                    expiresAt: api_key.expiresAt,
-                    createdAt: api_key.createdAt,
-                })
-                .from(api_key)
-                .innerJoin(service, eq(api_key.service_id, service.id))
-                .where(and(eq(service.owner_id, userId), isNull(api_key.deletedAt)));
-        } catch (error) {
-            throw parseDatabaseError(error, 'ApiKeyRepository.findAllByUser');
-        }
-    }
+	// NOVO: Lista todas as API Keys de um usuário (em todos os seus serviços)
+	async findAllByUser(userId: string) {
+		try {
+			return await db
+				.select({
+					id: api_key.id,
+					name: api_key.name,
+					prefix: api_key.prefix,
+					is_active: api_key.is_active,
+					credential_id: api_key.credential_id,
+					service_id: api_key.service_id, // Útil para o dashboard global
+					last_used_at: api_key.last_used_at,
+					expiresAt: api_key.expiresAt,
+					createdAt: api_key.createdAt,
+				})
+				.from(api_key)
+				.innerJoin(service, eq(api_key.service_id, service.id))
+				.where(and(eq(service.owner_id, userId), isNull(api_key.deletedAt)));
+		} catch (error) {
+			throw parseDatabaseError(error, 'ApiKeyRepository.findAllByUser');
+		}
+	}
 
 	// Busca uma API Key pelo hash.
 	async findByHash(hash: string) {

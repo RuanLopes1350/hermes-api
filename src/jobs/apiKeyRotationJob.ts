@@ -42,7 +42,11 @@ export async function processApiKeyRotation() {
 			.returning({ id: api_key.id, name: api_key.name });
 
 		if (expiredKeys.length > 0) {
-			console.log(chalk.yellow.bold(`[${getTimestamp()}] [JOB] Foram desativadas ${expiredKeys.length} chaves expiradas.`));
+			console.log(
+				chalk.yellow.bold(
+					`[${getTimestamp()}] [JOB] Foram desativadas ${expiredKeys.length} chaves expiradas.`,
+				),
+			);
 		}
 
 		// --- ETAPA 2: NOTIFICAÇÃO E ROTAÇÃO AUTOMÁTICA ---
@@ -70,20 +74,17 @@ export async function processApiKeyRotation() {
 					isNull(api_key.deletedAt),
 					isNotNull(api_key.expiresAt),
 					lte(api_key.expiresAt, maxNoticeThreshold),
-					or(
-						isNull(api_key.notification_sent_at),
-						lt(api_key.notification_sent_at, todayStart)
-					)
+					or(isNull(api_key.notification_sent_at), lt(api_key.notification_sent_at, todayStart)),
 				),
 			);
 
 		if (potentialKeysToNotify.length > 0) {
 			for (const data of potentialKeysToNotify) {
-				const settings = data.settings as any || {};
+				const settings = (data.settings as any) || {};
 				const noticeDays = settings?.notifications?.notice_days || 7;
 				const autoRotate = settings?.security?.auto_rotate || false;
 				const rotateThreshold = settings?.security?.rotate_threshold_days || 3;
-				
+
 				const expiresAt = new Date(data.expiresAt!);
 				const diffDays = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 3600 * 24));
 
@@ -91,14 +92,18 @@ export async function processApiKeyRotation() {
 
 				const webhookUrl = settings?.notifications?.webhook_url;
 				const webhookSecret = settings?.notifications?.webhook_secret;
-				
+
 				// ROTAÇÃO AUTOMÁTICA
 				let rotationData = null;
 				if (autoRotate && diffDays <= rotateThreshold) {
 					const rotatedKeys = settings?.security?.rotated_keys || [];
 					if (!rotatedKeys.includes(data.keyId)) {
-						console.log(chalk.magenta(`[${getTimestamp()}] [JOB] Executando rotação automática para key: ${data.keyId}`));
-						
+						console.log(
+							chalk.magenta(
+								`[${getTimestamp()}] [JOB] Executando rotação automática para key: ${data.keyId}`,
+							),
+						);
+
 						const { fullApiKey, keyHash, prefix } = await generateSecureApiKey();
 						const newKey = await apiKeyRepository.createApiKey({
 							name: `${data.keyName} (Auto-rotated)`,
@@ -106,15 +111,21 @@ export async function processApiKeyRotation() {
 							prefix,
 							serviceId: data.serviceId,
 							credentialId: data.credentialId, // PASSA O VÍNCULO OBRIGATÓRIO
-							expiresAt: null 
+							expiresAt: null,
 						});
 
 						rotationData = { new_key_id: newKey.id, new_token: fullApiKey };
-						
+
 						// Atualiza settings do serviço para marcar como rotacionado
 						rotatedKeys.push(data.keyId);
-						await db.update(service)
-							.set({ settings: { ...settings, security: { ...settings.security, rotated_keys: rotatedKeys } } })
+						await db
+							.update(service)
+							.set({
+								settings: {
+									...settings,
+									security: { ...settings.security, rotated_keys: rotatedKeys },
+								},
+							})
 							.where(eq(service.id, data.serviceId));
 					}
 				}
@@ -139,7 +150,9 @@ export async function processApiKeyRotation() {
 						const body = JSON.stringify(payload);
 						const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 						if (webhookSecret) {
-							headers['X-Hermes-Signature'] = createHmac('sha256', webhookSecret).update(body).digest('hex');
+							headers['X-Hermes-Signature'] = createHmac('sha256', webhookSecret)
+								.update(body)
+								.digest('hex');
 						}
 
 						await fetch(webhookUrl, { method: 'POST', headers, body });
@@ -150,10 +163,17 @@ export async function processApiKeyRotation() {
 
 				// Log de Email (Mock)
 				if (data.ownerEmail) {
-					console.log(chalk.cyan(`[${getTimestamp()}] [JOB] [EMAIL] Alerta de ${rotationData ? 'ROTAÇÃO' : 'Expiração'} enviado para ${data.ownerEmail}`));
+					console.log(
+						chalk.cyan(
+							`[${getTimestamp()}] [JOB] [EMAIL] Alerta de ${rotationData ? 'ROTAÇÃO' : 'Expiração'} enviado para ${data.ownerEmail}`,
+						),
+					);
 				}
 
-				await db.update(api_key).set({ notification_sent_at: new Date() }).where(eq(api_key.id, data.keyId));
+				await db
+					.update(api_key)
+					.set({ notification_sent_at: new Date() })
+					.where(eq(api_key.id, data.keyId));
 			}
 		}
 

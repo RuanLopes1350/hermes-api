@@ -54,7 +54,9 @@ export async function requireApiKey(req: Request, res: Response, next: NextFunct
 				expiresAt: api_key.expiresAt,
 			})
 			.from(api_key)
-			.where(and(eq(api_key.prefix, prefix), eq(api_key.is_active, true), isNull(api_key.deletedAt)));
+			.where(
+				and(eq(api_key.prefix, prefix), eq(api_key.is_active, true), isNull(api_key.deletedAt)),
+			);
 
 		let validKey = null;
 
@@ -104,7 +106,10 @@ export async function requireApiKey(req: Request, res: Response, next: NextFunct
 
 		next();
 	} catch (error) {
-		console.error(chalk.red.bold(`[${getTimestamp()}] [ERROR] [requireApiKey] Erro interno:`), error);
+		console.error(
+			chalk.red.bold(`[${getTimestamp()}] [ERROR] [requireApiKey] Erro interno:`),
+			error,
+		);
 		next(error);
 	}
 }

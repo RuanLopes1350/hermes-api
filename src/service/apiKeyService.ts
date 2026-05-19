@@ -21,7 +21,11 @@ class ApiKeyService {
 	 * Gera uma nova API Key vinculada obrigatoriamente a uma credencial.
 	 */
 	async generateApiKey(data: unknown, userId: string) {
-		console.log(chalk.blue.bold(`[${getTimestamp()}] [INFO] [ApiKeyService] Gerando nova API Key vinculada...`));
+		console.log(
+			chalk.blue.bold(
+				`[${getTimestamp()}] [INFO] [ApiKeyService] Gerando nova API Key vinculada...`,
+			),
+		);
 
 		const parsedData = createApiKeySchema.parse(data);
 
@@ -34,7 +38,11 @@ class ApiKeyService {
 		// 2. Valida que a credencial existe e pertence ao mesmo serviço
 		const cred = await credentialRepository.findById(parsedData.credentialId);
 		if (!cred || cred.service_id !== parsedData.serviceId) {
-			throw new ApiKeyDomainError('Credencial inválida para este serviço.', 400, 'INVALID_CREDENTIAL');
+			throw new ApiKeyDomainError(
+				'Credencial inválida para este serviço.',
+				400,
+				'INVALID_CREDENTIAL',
+			);
 		}
 
 		const { fullApiKey, keyHash, prefix } = await generateSecureApiKey();
@@ -48,7 +56,11 @@ class ApiKeyService {
 			expiresAt: parsedData.expires_at ? new Date(parsedData.expires_at) : null,
 		});
 
-		console.log(chalk.green.bold(`[${getTimestamp()}] [SUCCESS] [ApiKeyService] API Key gerada: ${savedApiKey.id}`));
+		console.log(
+			chalk.green.bold(
+				`[${getTimestamp()}] [SUCCESS] [ApiKeyService] API Key gerada: ${savedApiKey.id}`,
+			),
+		);
 
 		return {
 			...savedApiKey,
@@ -59,14 +71,15 @@ class ApiKeyService {
 
 	async listApiKeys(serviceId: string, userId: string) {
 		const serviceExists = await serviceRepository.findByIdAndOwner(serviceId, userId);
-		if (!serviceExists) throw new ApiKeyDomainError('Serviço não encontrado.', 404, 'SERVICE_NOT_FOUND');
+		if (!serviceExists)
+			throw new ApiKeyDomainError('Serviço não encontrado.', 404, 'SERVICE_NOT_FOUND');
 		return apiKeyRepository.findAllByService(serviceId);
 	}
 
-    // NOVO: Lista todas as API Keys do usuário
-    async listAllUserApiKeys(userId: string) {
-        return apiKeyRepository.findAllByUser(userId);
-    }
+	// NOVO: Lista todas as API Keys do usuário
+	async listAllUserApiKeys(userId: string) {
+		return apiKeyRepository.findAllByUser(userId);
+	}
 
 	async getApiKey(keyId: string, userId: string) {
 		const found = await apiKeyRepository.findById(keyId);

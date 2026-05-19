@@ -48,7 +48,9 @@ export async function setupSystemJobs() {
 	);
 
 	console.log(
-		chalk.magenta.bold(`[${getTimestamp()}] [SYSTEM] Jobs agendados com sucesso (BullMQ Repeatable).`),
+		chalk.magenta.bold(
+			`[${getTimestamp()}] [SYSTEM] Jobs agendados com sucesso (BullMQ Repeatable).`,
+		),
 	);
 }
 

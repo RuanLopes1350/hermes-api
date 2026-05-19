@@ -34,9 +34,9 @@ class EmailController {
 				verifiedServiceId,
 				req.body,
 				verifiedServiceId, // O terceiro parâmetro do service é o Service ID da chave para validação
-                verifiedCredentialId // Passaremos um QUARTO parâmetro para forçar a credencial da chave
+				verifiedCredentialId, // Passaremos um QUARTO parâmetro para forçar a credencial da chave
 			);
-			
+
 			return CommonResponse.created(res, newEmail, 'E-mail enfileirado com sucesso!');
 		} catch (error) {
 			next(error);

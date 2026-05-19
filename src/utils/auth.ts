@@ -49,7 +49,9 @@ export const auth = betterAuth({
 		autoSignIn: nodeEnv === 'development',
 	},
 	advanced: {
-		useSecureCookies: process.env.AUTH_SECURE_COOKIES === 'true' || (process.env.NODE_ENV === 'production' && process.env.AUTH_SECURE_COOKIES !== 'false'),
+		useSecureCookies:
+			process.env.AUTH_SECURE_COOKIES === 'true' ||
+			(process.env.NODE_ENV === 'production' && process.env.AUTH_SECURE_COOKIES !== 'false'),
 		ipAddress: {
 			ipAddressHeaders: ['x-forwarded-for', 'cf-connecting-ip', 'x-real-ip'],
 		},
@@ -58,10 +60,10 @@ export const auth = betterAuth({
 			domain: process.env.AUTH_COOKIE_DOMAIN || undefined,
 		},
 		defaultCookieAttributes: {
-			sameSite: "none",
+			sameSite: 'none',
 			secure: true,
 			httpOnly: true,
-		}
+		},
 	},
 	trustedOrigins: trustedOrigins,
 });

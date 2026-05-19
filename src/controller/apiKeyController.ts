@@ -7,14 +7,13 @@ import CommonResponse from '../utils/helpers/commonResponse.js';
 class ApiKeyController {
 	// POST /api/services/:serviceId/api-keys
 	async create(req: Request, res: Response, next: NextFunction) {
-		console.log(chalk.cyan(`[${getTimestamp()}] [POST] /api/services/${req.params.serviceId}/api-keys`));
+		console.log(
+			chalk.cyan(`[${getTimestamp()}] [POST] /api/services/${req.params.serviceId}/api-keys`),
+		);
 		try {
 			const serviceId = String(req.params.serviceId);
 			const userId = req.user!.id;
-			const result = await apiKeyService.generateApiKey(
-				{ ...req.body, serviceId },
-				userId,
-			);
+			const result = await apiKeyService.generateApiKey({ ...req.body, serviceId }, userId);
 			return CommonResponse.created(res, result, 'API Key gerada com sucesso!');
 		} catch (error) {
 			next(error);
@@ -33,17 +32,17 @@ class ApiKeyController {
 		}
 	}
 
-    // NOVO: GET /api/api-keys (Global)
-    async listGlobal(req: Request, res: Response, next: NextFunction) {
-        console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/api-keys`));
-        try {
-            const userId = req.user!.id;
-            const keys = await apiKeyService.listAllUserApiKeys(userId);
-            return CommonResponse.success(res, keys, 200, `${keys.length} API Key(s) encontrada(s).`);
-        } catch (error) {
-            next(error);
-        }
-    }
+	// NOVO: GET /api/api-keys (Global)
+	async listGlobal(req: Request, res: Response, next: NextFunction) {
+		console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/api-keys`));
+		try {
+			const userId = req.user!.id;
+			const keys = await apiKeyService.listAllUserApiKeys(userId);
+			return CommonResponse.success(res, keys, 200, `${keys.length} API Key(s) encontrada(s).`);
+		} catch (error) {
+			next(error);
+		}
+	}
 
 	async getOne(req: Request, res: Response, next: NextFunction) {
 		try {

@@ -43,9 +43,6 @@ router.get(
 	credentialController.authorizeGoogle.bind(credentialController),
 );
 
-router.get(
-	'/auth/google/callback',
-	credentialController.callbackGoogle.bind(credentialController),
-);
+router.get('/auth/google/callback', credentialController.callbackGoogle.bind(credentialController));
 
 export default router;

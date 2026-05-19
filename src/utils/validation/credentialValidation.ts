@@ -6,14 +6,17 @@ const smtpPortSchema = z.coerce
 	.min(1, 'A porta SMTP deve ser maior que 0.')
 	.max(65535, 'A porta SMTP deve ser menor ou igual a 65535.');
 
-const smtpSecureSchema = z.preprocess((value) => {
-	if (typeof value === 'string') {
-		const normalized = value.trim().toLowerCase();
-		if (normalized === 'true' || normalized === '1') return true;
-		if (normalized === 'false' || normalized === '0') return false;
-	}
-	return value;
-}, z.boolean({ message: 'O campo smtpSecure deve ser booleano (true/false).' }));
+const smtpSecureSchema = z.preprocess(
+	(value) => {
+		if (typeof value === 'string') {
+			const normalized = value.trim().toLowerCase();
+			if (normalized === 'true' || normalized === '1') return true;
+			if (normalized === 'false' || normalized === '0') return false;
+		}
+		return value;
+	},
+	z.boolean({ message: 'O campo smtpSecure deve ser booleano (true/false).' }),
+);
 
 // Schema base compartilhado
 const baseCredentialSchema = z.object({

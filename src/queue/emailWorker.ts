@@ -50,8 +50,10 @@ async function processEmailJob(job: Job<EmailJobPayload>) {
 	let authConfig: any = {};
 
 	if (credentialData.auth_type === 'oauth2') {
-		console.log(chalk.magenta(`[${getTimestamp()}] [WORKER] Utilizando autenticação OAuth2 do Google.`));
-		
+		console.log(
+			chalk.magenta(`[${getTimestamp()}] [WORKER] Utilizando autenticação OAuth2 do Google.`),
+		);
+
 		const clientSecret = await credentialService.getDecryptedPasskey(credentialData.client_secret!);
 		const refreshToken = await credentialService.getDecryptedPasskey(credentialData.refresh_token!);
 
@@ -73,7 +75,7 @@ async function processEmailJob(job: Job<EmailJobPayload>) {
 	const transporter = nodemailer.createTransport({
 		host: credentialData.smtp_host,
 		port: credentialData.smtp_port,
-		secure: credentialData.smtp_secure, 
+		secure: credentialData.smtp_secure,
 		auth: authConfig,
 	});
 
@@ -102,7 +104,7 @@ async function processEmailJob(job: Job<EmailJobPayload>) {
 	// 5. Enviar E-mail via Nodemailer
 	try {
 		await transporter.sendMail({
-			from: credentialData.login, 
+			from: credentialData.login,
 			to: mailData.recipient_to,
 			subject: finalSubject,
 			html: finalHtml,
@@ -146,5 +148,7 @@ emailWorker.on('completed', (job) => {
 });
 
 emailWorker.on('failed', (job, err) => {
-	console.error(chalk.red.bold(`[${getTimestamp()}] [BULLMQ] Job ${job?.id} falhou: ${err.message}`));
+	console.error(
+		chalk.red.bold(`[${getTimestamp()}] [BULLMQ] Job ${job?.id} falhou: ${err.message}`),
+	);
 });

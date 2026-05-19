@@ -87,7 +87,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api', userRouter);
-import serviceRoutes from './routes/serviceRoutes.js'; 
+import serviceRoutes from './routes/serviceRoutes.js';
 app.use('/api', serviceRoutes);
 app.use('/api', apiKeyRouter);
 app.use('/api', logRouter);

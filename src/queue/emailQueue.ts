@@ -15,9 +15,9 @@ export interface EmailJobPayload {
  * No BullMQ, quanto MENOR o número, MAIOR a precedência.
  */
 export const priorityMap = {
-	high: 1,   // Processamento imediato
+	high: 1, // Processamento imediato
 	medium: 5, // Padrão
-	low: 10,   // Processado apenas em baixa carga
+	low: 10, // Processado apenas em baixa carga
 };
 
 // Instancia a fila principal de despachos de e-mail

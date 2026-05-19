@@ -7,7 +7,9 @@ import CommonResponse from '../utils/helpers/commonResponse.js';
 class CredentialController {
 	// POST /api/services/:serviceId/credentials
 	async create(req: Request, res: Response, next: NextFunction) {
-		console.log(chalk.cyan(`[${getTimestamp()}] [POST] /api/services/${req.params.serviceId}/credentials`));
+		console.log(
+			chalk.cyan(`[${getTimestamp()}] [POST] /api/services/${req.params.serviceId}/credentials`),
+		);
 		try {
 			const serviceId = String(req.params.serviceId);
 			const userId = req.user!.id;
@@ -24,23 +26,33 @@ class CredentialController {
 			const serviceId = String(req.params.serviceId);
 			const userId = req.user!.id;
 			const credentials = await credentialService.listCredentials(serviceId, userId);
-			return CommonResponse.success(res, credentials, 200, `${credentials.length} credencial(is) encontrada(s).`);
+			return CommonResponse.success(
+				res,
+				credentials,
+				200,
+				`${credentials.length} credencial(is) encontrada(s).`,
+			);
 		} catch (error) {
 			next(error);
 		}
 	}
 
-    // NOVO: GET /api/credentials (Global)
-    async listGlobal(req: Request, res: Response, next: NextFunction) {
-        console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/credentials`));
-        try {
-            const userId = req.user!.id;
-            const credentials = await credentialService.listAllUserCredentials(userId);
-            return CommonResponse.success(res, credentials, 200, `${credentials.length} credencial(is) encontrada(s).`);
-        } catch (error) {
-            next(error);
-        }
-    }
+	// NOVO: GET /api/credentials (Global)
+	async listGlobal(req: Request, res: Response, next: NextFunction) {
+		console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/credentials`));
+		try {
+			const userId = req.user!.id;
+			const credentials = await credentialService.listAllUserCredentials(userId);
+			return CommonResponse.success(
+				res,
+				credentials,
+				200,
+				`${credentials.length} credencial(is) encontrada(s).`,
+			);
+		} catch (error) {
+			next(error);
+		}
+	}
 
 	async getOne(req: Request, res: Response, next: NextFunction) {
 		try {
@@ -97,7 +109,9 @@ class CredentialController {
 			if (!code || !credentialId) throw new Error('Parâmetros inválidos no callback do Google.');
 			await credentialService.finishGoogleAuth(String(credentialId), String(code));
 			// Redireciona de volta para o dashboard
-			return res.send('<h1>Autenticação concluída!</h1><p>Você já pode fechar esta aba e voltar ao dashboard do Hermes.</p>');
+			return res.send(
+				'<h1>Autenticação concluída!</h1><p>Você já pode fechar esta aba e voltar ao dashboard do Hermes.</p>',
+			);
 		} catch (error) {
 			next(error);
 		}

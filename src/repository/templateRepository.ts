@@ -85,10 +85,10 @@ class TemplateRepository {
 						or(
 							eq(service.owner_id, userId),
 							eq(template.creator_id, userId),
-							eq(template.global, true)
+							eq(template.global, true),
 						),
-						isNull(template.deletedAt)
-					)
+						isNull(template.deletedAt),
+					),
 				);
 		} catch (error) {
 			throw parseDatabaseError(error, 'TemplateRepository.findAllByUser');
@@ -115,7 +115,9 @@ class TemplateRepository {
 	// Busca um template por ID verificando o acesso do usuário.
 	async findByIdAndUser(id: string, userId: string) {
 		console.log(
-			chalk.magenta(`[${getTimestamp()}] [DB] [TemplateRepository] Buscando template ${id} para usuário ${userId}`),
+			chalk.magenta(
+				`[${getTimestamp()}] [DB] [TemplateRepository] Buscando template ${id} para usuário ${userId}`,
+			),
 		);
 		try {
 			const [found] = await db
@@ -137,10 +139,10 @@ class TemplateRepository {
 						or(
 							eq(service.owner_id, userId),
 							eq(template.creator_id, userId),
-							eq(template.global, true)
+							eq(template.global, true),
 						),
-						isNull(template.deletedAt)
-					)
+						isNull(template.deletedAt),
+					),
 				)
 				.limit(1);
 			return found ?? null;

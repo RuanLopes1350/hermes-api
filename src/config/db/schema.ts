@@ -155,7 +155,9 @@ export const email = pgTable('email', {
 		.notNull()
 		.references(() => service.id, { onDelete: 'cascade' }),
 	credential_id: text('credential_id').references(() => credential.id, { onDelete: 'set null' }),
-	service_template_id: text('service_template_id').references(() => template.id, { onDelete: 'set null' }),
+	service_template_id: text('service_template_id').references(() => template.id, {
+		onDelete: 'set null',
+	}),
 	subject: varchar('subject').notNull(),
 	recipient_to: varchar('recipient_to').notNull(),
 	body: text('body'),

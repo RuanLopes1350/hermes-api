@@ -67,26 +67,26 @@ class CredentialRepository {
 		}
 	}
 
-    // NOVO: Lista todas as credenciais de um usuário (em todos os seus serviços)
-    async findAllByUser(userId: string): Promise<Partial<CredentialType>[]> {
-        try {
-            return await db
-                .select({
-                    id: credential.id,
-                    name: credential.name,
-                    auth_type: credential.auth_type,
-                    login: credential.login,
-                    service_id: credential.service_id,
-                    createdAt: credential.createdAt,
-                    updatedAt: credential.updatedAt,
-                })
-                .from(credential)
-                .innerJoin(service, eq(credential.service_id, service.id))
-                .where(and(eq(service.owner_id, userId), isNull(credential.deletedAt)));
-        } catch (error) {
-            throw parseDatabaseError(error, 'CredentialRepository.findAllByUser');
-        }
-    }
+	// NOVO: Lista todas as credenciais de um usuário (em todos os seus serviços)
+	async findAllByUser(userId: string): Promise<Partial<CredentialType>[]> {
+		try {
+			return await db
+				.select({
+					id: credential.id,
+					name: credential.name,
+					auth_type: credential.auth_type,
+					login: credential.login,
+					service_id: credential.service_id,
+					createdAt: credential.createdAt,
+					updatedAt: credential.updatedAt,
+				})
+				.from(credential)
+				.innerJoin(service, eq(credential.service_id, service.id))
+				.where(and(eq(service.owner_id, userId), isNull(credential.deletedAt)));
+		} catch (error) {
+			throw parseDatabaseError(error, 'CredentialRepository.findAllByUser');
+		}
+	}
 
 	// Busca uma credencial ativa por ID.
 	async findById(id: string): Promise<CredentialType | null> {

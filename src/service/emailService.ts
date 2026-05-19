@@ -21,11 +21,11 @@ class EmailService {
 	 * Enfileira um novo e-mail vinculando-o à credencial carimbada na API Key.
 	 */
 	async createEmail(
-        serviceId: string, 
-        data: unknown, 
-        apiKeyServiceId: string,
-        apiKeyCredentialId: string
-    ) {
+		serviceId: string,
+		data: unknown,
+		apiKeyServiceId: string,
+		apiKeyCredentialId: string,
+	) {
 		console.log(
 			chalk.blue.bold(
 				`[${getTimestamp()}] [INFO] [EmailService] Enfileirando e-mail para serviço: ${serviceId}`,
@@ -44,7 +44,7 @@ class EmailService {
 		const parsedData = createEmailSchema.parse(data);
 
 		// 2. Buscar Serviço para obter prioridade padrão se necessário
-		const serviceData = await serviceRepository.findByIdAndOwner(serviceId, (null as any)); // Omitimos owner check aqui pois apiKey já valida
+		const serviceData = await serviceRepository.findByIdAndOwner(serviceId, null as any); // Omitimos owner check aqui pois apiKey já valida
 		const defaultPriority = (serviceData?.settings as any)?.defaultPriority || 'medium';
 
 		// 3. Validação de Template
@@ -61,7 +61,7 @@ class EmailService {
 
 		// 4. Persistência
 		const finalPriority = (parsedData as any).priority || defaultPriority;
-		
+
 		const newEmail = await emailRepository.create({
 			serviceId: serviceId,
 			credentialId: apiKeyCredentialId,
@@ -108,14 +108,19 @@ class EmailService {
 
 	async getEmail(serviceId: string, emailId: string, userId: string) {
 		const found = await emailRepository.findById(emailId);
-		if (!found || found.service_id !== serviceId) throw new EmailDomainError('E-mail não encontrado.', 404, 'NOT_FOUND');
+		if (!found || found.service_id !== serviceId)
+			throw new EmailDomainError('E-mail não encontrado.', 404, 'NOT_FOUND');
 		return found;
 	}
 
 	async cancelEmail(serviceId: string, emailId: string, userId: string) {
 		const found = await this.getEmail(serviceId, emailId, userId);
 		if (found.status !== 'pending') {
-			throw new EmailDomainError(`Apenas e-mails pendentes podem ser cancelados. Status: ${found.status}`, 409, 'CONFLICT');
+			throw new EmailDomainError(
+				`Apenas e-mails pendentes podem ser cancelados. Status: ${found.status}`,
+				409,
+				'CONFLICT',
+			);
 		}
 		const deleted = await emailRepository.softDeleteById(emailId);
 		return { id: deleted.id };
