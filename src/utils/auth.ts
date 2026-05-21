@@ -15,6 +15,12 @@ const trustedOrigins = (process.env.AUTH_TRUSTED_ORIGINS || 'http://localhost:30
 	.split(',')
 	.map((origin) => origin.trim());
 
+// Determina se devemos usar cookies seguros baseados na env ou no protocolo da baseURL
+const isSecure =
+	process.env.AUTH_SECURE_COOKIES === 'true' ||
+	(nodeEnv === 'production' && process.env.AUTH_SECURE_COOKIES !== 'false') ||
+	baseURL.startsWith('https');
+
 export const auth = betterAuth({
 	secret: secret,
 	baseURL: baseURL,
@@ -42,23 +48,22 @@ export const auth = betterAuth({
 		},
 	},
 
-	socialProviders: {
-		google: {
-			clientId: process.env.GOOGLE_CLIENT_ID!,
-			clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-		},
-	},
-
 	plugins: [bearer()],
 
 	emailAndPassword: {
 		enabled: true,
 		autoSignIn: nodeEnv === 'development',
 	},
+
+	socialProviders: {
+		google: {
+			clientId: process.env.GOOGLE_CLIENT_ID || '',
+			clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+		},
+	},
+
 	advanced: {
-		useSecureCookies:
-			process.env.AUTH_SECURE_COOKIES === 'true' ||
-			(process.env.NODE_ENV === 'production' && process.env.AUTH_SECURE_COOKIES !== 'false'),
+		useSecureCookies: isSecure,
 		ipAddress: {
 			ipAddressHeaders: ['x-forwarded-for', 'cf-connecting-ip', 'x-real-ip'],
 		},
@@ -67,8 +72,8 @@ export const auth = betterAuth({
 			domain: process.env.AUTH_COOKIE_DOMAIN || undefined,
 		},
 		defaultCookieAttributes: {
-			sameSite: 'none',
-			secure: true,
+			sameSite: isSecure ? 'none' : 'lax',
+			secure: isSecure,
 			httpOnly: true,
 		},
 	},
