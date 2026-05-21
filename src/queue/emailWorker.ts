@@ -10,6 +10,7 @@ import emailRepository from '../repository/emailRepository.js';
 import credentialRepository from '../repository/credentialRepository.js';
 import templateRepository from '../repository/templateRepository.js';
 import credentialService from '../service/credentialService.js';
+import { renderTemplate } from '../utils/renderTemplate.js';
 
 // Handler principal do processamento de emails
 async function processEmailJob(job: Job<EmailJobPayload>) {
@@ -87,14 +88,18 @@ async function processEmailJob(job: Job<EmailJobPayload>) {
 		const tmpl = await templateRepository.findById(mailData.service_template_id);
 		if (tmpl) {
 			if (tmpl.html_content) {
-				const compileHtml = Handlebars.compile(tmpl.html_content);
-				finalHtml = compileHtml(variables || {});
+				const { html } = await renderTemplate(tmpl.html_content, variables || {});
+				finalHtml = html;
 			}
 			if (tmpl.subject_template) {
 				const compileSubject = Handlebars.compile(tmpl.subject_template);
 				finalSubject = compileSubject(variables || {});
 			}
 		}
+	} else if (finalHtml.includes('<mjml>')) {
+		// Caso o body enviado manualmente (sem template_id) também contenha MJML
+		const { html } = await renderTemplate(finalHtml, variables || {});
+		finalHtml = html;
 	}
 
 	if (!finalHtml) {

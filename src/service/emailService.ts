@@ -50,9 +50,11 @@ class EmailService {
 		// 3. Validação de Template
 		if (parsedData.template_id) {
 			const tmpl = await templateRepository.findById(parsedData.template_id);
-			if (!tmpl || tmpl.service_id !== serviceId) {
+			
+			// Se o template não existir OU (não for global E não pertencer a este serviço)
+			if (!tmpl || (!tmpl.global && tmpl.service_id !== serviceId)) {
 				throw new EmailDomainError(
-					'O template informado não pertence a este serviço.',
+					'O template informado não existe ou não pertence a este serviço.',
 					HttpStatusCode.UNPROCESSABLE_ENTITY.code,
 					'INVALID_TEMPLATE',
 				);
