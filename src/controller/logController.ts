@@ -28,8 +28,18 @@ class LogController {
 			const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
 			const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
 
-			const logsList = await logService.listLogs(limit, offset);
-			return CommonResponse.success(res, logsList, 200, `${logsList.length} log(s) encontrado(s).`);
+			const result = await logService.listLogs(limit, offset);
+			return CommonResponse.success(
+				res,
+				result.items,
+				200,
+				`${result.items.length} log(s) encontrado(s).`,
+				{
+					total: result.total,
+					limit: result.limit,
+					offset: result.offset,
+				},
+			);
 		} catch (error) {
 			next(error);
 		}

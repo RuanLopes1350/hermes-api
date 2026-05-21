@@ -27,7 +27,12 @@ class LogService {
 		const safeLimit = Math.min(Math.max(limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
 		const safeOffset = Math.max(offset ?? 0, 0);
 
-		return logRepository.findAll(safeLimit, safeOffset);
+		const [items, total] = await Promise.all([
+			logRepository.findAll(safeLimit, safeOffset),
+			logRepository.countAll(),
+		]);
+
+		return { items, total, limit: safeLimit, offset: safeOffset };
 	}
 
 	// Busca um log por ID.

@@ -1,6 +1,6 @@
 import { db } from '../config/dbConfig.js';
 import { logs } from '../config/db/schema.js';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import { parseDatabaseError } from '../utils/helpers/dbErrors.js';
@@ -19,6 +19,16 @@ class LogRepository {
 			return await db.select().from(logs).orderBy(desc(logs.createdAt)).limit(limit).offset(offset);
 		} catch (error) {
 			throw parseDatabaseError(error, 'LogRepository.findAll');
+		}
+	}
+
+	// Conta o total de logs existentes.
+	async countAll() {
+		try {
+			const [res] = await db.select({ value: sql`count(*)` }).from(logs);
+			return Number(res.value);
+		} catch (error) {
+			throw parseDatabaseError(error, 'LogRepository.countAll');
 		}
 	}
 

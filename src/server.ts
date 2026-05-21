@@ -17,6 +17,7 @@ import credentialRouter from './routes/credentialRoutes.js';
 import templateRouter from './routes/templateRoutes.js';
 import emailRouter from './routes/emailRoutes.js';
 import logRouter from './routes/logRoutes.js';
+import dashboardRouter from './routes/dashboardRoutes.js';
 import { processApiKeyRotation } from './jobs/apiKeyRotationJob.js';
 import { getTimestamp } from './utils/helpers/dateUtils.js';
 
@@ -87,14 +88,13 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api', userRouter);
-import serviceRoutes from './routes/serviceRoutes.js';
-app.use('/api', serviceRoutes);
+app.use('/api', serviceRouter);
 app.use('/api', apiKeyRouter);
 app.use('/api', logRouter);
-import credentialRoutes from './routes/credentialRoutes.js';
-app.use('/api', credentialRoutes);
+app.use('/api', credentialRouter);
 app.use('/api', templateRouter);
 app.use('/api', emailRouter);
+app.use('/api', dashboardRouter);
 
 app.use(errorHandler);
 

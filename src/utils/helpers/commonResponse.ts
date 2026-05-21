@@ -4,33 +4,49 @@ class CommonResponse {
 	errors: any[];
 	error: boolean;
 	code: number | null;
+	metadata: any;
+
 	constructor(
 		message: string | null,
 		data: any = null,
 		errors: any[] = [],
 		error: boolean = false,
 		code: number | null = null,
+		metadata: any = null,
 	) {
 		this.message = message;
 		this.data = data;
 		this.errors = errors;
 		this.error = error;
 		this.code = code;
+		this.metadata = metadata;
 	}
 
 	toJSON() {
-		return {
+		const response: any = {
 			error: this.error,
 			code: this.code,
 			message: this.message,
 			data: this.data,
 			errors: this.errors,
 		};
+
+		if (this.metadata) {
+			response.metadata = this.metadata;
+		}
+
+		return response;
 	}
 
-	static success(res: any, data: any, code = 200, message: string | null = null) {
+	static success(
+		res: any,
+		data: any,
+		code = 200,
+		message: string | null = null,
+		metadata: any = null,
+	) {
 		const statusMessage = message;
-		const response = new CommonResponse(statusMessage, data, [], false, code);
+		const response = new CommonResponse(statusMessage, data, [], false, code, metadata);
 		return res.status(code).json(response);
 	}
 
