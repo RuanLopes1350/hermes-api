@@ -45,12 +45,11 @@ const plainCredentialSchema = baseCredentialSchema.extend({
 	smtpSecure: smtpSecureSchema,
 });
 
-// Schema para Google OAuth2
+// Schema para Google OAuth2 (Agora com campos opcionais para modo Global)
 const oauth2CredentialSchema = baseCredentialSchema.extend({
 	authType: z.literal('oauth2'),
-	clientId: z.string().min(1, 'Google Client ID é obrigatório.'),
-	clientSecret: z.string().min(1, 'Google Client Secret é obrigatório.'),
-	// Refresh token não é enviado na criação, é obtido no callback
+	clientId: z.string().optional(),
+	clientSecret: z.string().optional(),
 });
 
 // Schema de união para criação

@@ -7,7 +7,6 @@ import { toNodeHandler } from 'better-auth/node';
 import { auth } from './utils/auth.js';
 import { isAPIError } from 'better-auth/api';
 import { errorHandler } from './middlewares/errorHandler.js';
-import { requestLogger } from './middlewares/logMiddleware.js';
 
 // Importação das rotas
 import userRouter from './routes/userRoutes.js';
@@ -16,7 +15,6 @@ import apiKeyRouter from './routes/apiKeyRoutes.js';
 import credentialRouter from './routes/credentialRoutes.js';
 import templateRouter from './routes/templateRoutes.js';
 import emailRouter from './routes/emailRoutes.js';
-import logRouter from './routes/logRoutes.js';
 import dashboardRouter from './routes/dashboardRoutes.js';
 import { processApiKeyRotation } from './jobs/apiKeyRotationJob.js';
 import { getTimestamp } from './utils/helpers/dateUtils.js';
@@ -48,9 +46,6 @@ app.use(
 // 2. Parsers de Body (Devem vir antes das rotas)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Middleware para persistência de logs no Banco de Dados
-app.use(requestLogger);
 
 // Middleware para log de requisições HTTP no Console
 app.use((req, res, next) => {
@@ -90,7 +85,6 @@ app.get('/api/health', (req, res) => {
 app.use('/api', userRouter);
 app.use('/api', serviceRouter);
 app.use('/api', apiKeyRouter);
-app.use('/api', logRouter);
 app.use('/api', credentialRouter);
 app.use('/api', templateRouter);
 app.use('/api', emailRouter);

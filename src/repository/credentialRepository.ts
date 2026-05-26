@@ -57,6 +57,7 @@ class CredentialRepository {
 					auth_type: credential.auth_type,
 					login: credential.login,
 					service_id: credential.service_id,
+					refresh_token: credential.refresh_token, // OBRIGATÓRIO PARA O FRONT SABER O STATUS
 					createdAt: credential.createdAt,
 					updatedAt: credential.updatedAt,
 				})
@@ -77,6 +78,7 @@ class CredentialRepository {
 					auth_type: credential.auth_type,
 					login: credential.login,
 					service_id: credential.service_id,
+					refresh_token: credential.refresh_token,
 					createdAt: credential.createdAt,
 					updatedAt: credential.updatedAt,
 				})

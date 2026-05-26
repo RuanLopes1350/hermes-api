@@ -1,5 +1,5 @@
 import { db } from '../config/dbConfig.js';
-import { email, user, service, template, logs } from '../config/db/schema.js';
+import { email, user, service, template } from '../config/db/schema.js';
 import { eq, count, and, isNull, sql, desc } from 'drizzle-orm';
 import { emailQueue } from '../queue/emailQueue.js';
 import chalk from 'chalk';
@@ -12,6 +12,7 @@ class DashboardService {
 	async getAdminStats() {
 		console.log(chalk.blue.bold(`[${getTimestamp()}] [INFO] [DashboardService] Gerando stats de ADMIN`));
 
+		// 1. Resumo de Volumes (Paralelo)
 		const [
 			totalEmailsRes,
 			failedEmailsRes,
@@ -24,13 +25,14 @@ class DashboardService {
 			db.select({ value: count() }).from(service).where(isNull(service.deletedAt)),
 		]);
 
+		// 2. Status da Fila (Redis/BullMQ)
 		const [waiting, active, queueFailed] = await Promise.all([
 			emailQueue.getWaitingCount(),
 			emailQueue.getActiveCount(),
 			emailQueue.getFailedCount(),
 		]);
 
-		// Latência Global: Média de (sent_at - created_at) por dia nos últimos 7 dias
+		// 3. Latência Global: Média de (sent_at - created_at) por dia nos últimos 7 dias
 		const latencyData = await db.execute(sql`
 			SELECT 
 				DATE(created_at) as date,
@@ -42,12 +44,7 @@ class DashboardService {
 			ORDER BY 1 ASC
 		`);
 
-		const recentLogs = await db.select()
-			.from(logs)
-			.orderBy(desc(logs.createdAt))
-			.limit(5);
-
-		// 5. Lista de Todos os Serviços com Nome do Dono
+		// 4. Lista de Todos os Serviços com Nome do Dono
 		const allServices = await db.select({
 			id: service.id,
 			name: service.name,
@@ -73,7 +70,6 @@ class DashboardService {
 				failed: queueFailed,
 			},
 			latency: latencyData.rows,
-			recentLogs,
 			allServices
 		};
 	}
@@ -84,6 +80,7 @@ class DashboardService {
 	async getUserStats(userId: string) {
 		console.log(chalk.blue.bold(`[${getTimestamp()}] [INFO] [DashboardService] Gerando stats de USER: ${userId}`));
 
+		// 1. Resumo Pessoal
 		const [
 			sentRes,
 			pendingRes,
@@ -105,7 +102,7 @@ class DashboardService {
 			db.select({ value: count() }).from(template).where(and(eq(template.creator_id, userId), isNull(template.deletedAt))),
 		]);
 
-		// Latência Pessoal: Média por dia nos últimos 7 dias para os serviços do usuário
+		// 2. Latência Pessoal: Média por dia nos últimos 7 dias para os serviços do usuário
 		const latencyData = await db.execute(sql`
 			SELECT 
 				DATE(e.created_at) as date,
@@ -118,6 +115,7 @@ class DashboardService {
 			ORDER BY 1 ASC
 		`);
 
+		// 3. Top Templates
 		const topTemplates = await db.execute(sql`
 			SELECT 
 				t.name,
@@ -131,6 +129,7 @@ class DashboardService {
 			LIMIT 5
 		`);
 
+		// 4. Últimos Envios
 		const recentEmails = await db.select({
 			id: email.id,
 			recipient: email.recipient_to,

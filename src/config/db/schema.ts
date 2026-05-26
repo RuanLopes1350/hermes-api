@@ -172,14 +172,3 @@ export const email = pgTable('email', {
 	createdAt: timestamp('created_at').notNull().defaultNow(),
 	deletedAt: timestamp('deleted_at'),
 });
-
-export const logs = pgTable('logs', {
-	id: text('id').primaryKey().notNull(),
-	method: varchar('method').notNull(),
-	status_code: integer('status_code').notNull(),
-	endpoint: varchar('endpoint').notNull(),
-	ip_address: varchar('ip_address'),
-	api_key_id: text('api_key_id').references(() => api_key.id),
-	user_id: text('user_id').references(() => user.id),
-	createdAt: timestamp('created_at').notNull().defaultNow(),
-});

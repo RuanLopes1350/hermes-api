@@ -9,7 +9,7 @@ import { EmailJobPayload } from './emailQueue.js';
 import emailRepository from '../repository/emailRepository.js';
 import credentialRepository from '../repository/credentialRepository.js';
 import templateRepository from '../repository/templateRepository.js';
-import credentialService from '../service/credentialService.js';
+import { decrypt } from '../service/credentialService.js';
 import { renderTemplate } from '../utils/renderTemplate.js';
 
 // Handler principal do processamento de emails
@@ -47,38 +47,51 @@ async function processEmailJob(job: Job<EmailJobPayload>) {
 	const credentialData = await credentialRepository.findById(credIdToUse);
 	if (!credentialData) throw new Error(`Dados da Credencial ${credIdToUse} não encontrados.`);
 
-	// 3. Montar Transporter do Nodemailer
-	let authConfig: any = {};
+	// 3. Montar Configuração do Transportador
+	let transporterConfig: any = {};
 
 	if (credentialData.auth_type === 'oauth2') {
 		console.log(
-			chalk.magenta(`[${getTimestamp()}] [WORKER] Utilizando autenticação OAuth2 do Google.`),
+			chalk.magenta(`[${getTimestamp()}] [WORKER] OAuth2: Tentando enviar como ${credentialData.login}`),
 		);
 
-		const clientSecret = await credentialService.getDecryptedPasskey(credentialData.client_secret!);
-		const refreshToken = await credentialService.getDecryptedPasskey(credentialData.refresh_token!);
+		if (!credentialData.client_secret || !credentialData.refresh_token) {
+			throw new Error('Credenciais OAuth2 incompletas (Client Secret ou Refresh Token ausentes).');
+		}
 
-		authConfig = {
-			type: 'OAuth2',
-			user: credentialData.login,
-			clientId: credentialData.client_id,
-			clientSecret: clientSecret,
-			refreshToken: refreshToken,
+		const clientSecret = decrypt(credentialData.client_secret);
+		const refreshToken = decrypt(credentialData.refresh_token);
+
+		// Configuração ultra-detalhada para capturar o erro exato
+		transporterConfig = {
+			service: 'gmail',
+			auth: {
+				type: 'OAuth2',
+				user: credentialData.login,
+				clientId: credentialData.client_id,
+				clientSecret: clientSecret,
+				refreshToken: refreshToken,
+			},
+			debug: true, 
+			logger: true // ATIVA LOGS DE PROTOCOLO SMTP NO CONSOLE
 		};
 	} else {
-		const plainPasskey = await credentialService.getDecryptedPasskey(credIdToUse);
-		authConfig = {
-			user: credentialData.login,
-			pass: plainPasskey,
+		if (!credentialData.passkey) {
+			throw new Error('Passkey SMTP não encontrada para autenticação plain.');
+		}
+		const plainPasskey = decrypt(credentialData.passkey);
+		transporterConfig = {
+			host: credentialData.smtp_host,
+			port: credentialData.smtp_port,
+			secure: credentialData.smtp_secure,
+			auth: {
+				user: credentialData.login,
+				pass: plainPasskey,
+			},
 		};
 	}
 
-	const transporter = nodemailer.createTransport({
-		host: credentialData.smtp_host,
-		port: credentialData.smtp_port,
-		secure: credentialData.smtp_secure,
-		auth: authConfig,
-	});
+	const transporter = nodemailer.createTransport(transporterConfig);
 
 	// 4. Estruturar Template e Variáveis
 	let finalHtml = mailData.body || '';
@@ -97,7 +110,6 @@ async function processEmailJob(job: Job<EmailJobPayload>) {
 			}
 		}
 	} else if (finalHtml.includes('<mjml>')) {
-		// Caso o body enviado manualmente (sem template_id) também contenha MJML
 		const { html } = await renderTemplate(finalHtml, variables || {});
 		finalHtml = html;
 	}
@@ -128,8 +140,11 @@ async function processEmailJob(job: Job<EmailJobPayload>) {
 		);
 	} catch (error: any) {
 		console.error(
-			chalk.red(`[${getTimestamp()}] [WORKER] Erro Nodemailer ao enviar email: ${error.message}`),
+			chalk.red(`[${getTimestamp()}] [WORKER] Erro Nodemailer: ${error.message}`),
 		);
+		
+		// Log detalhado do erro SMTP
+		if (error.response) console.error(chalk.red(`[SMTP Response]: ${error.response}`));
 
 		await emailRepository.updateStatus(emailId, {
 			retry_count: mailData.retry_count + 1,

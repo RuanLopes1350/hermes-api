@@ -105,13 +105,16 @@ class CredentialController {
 
 	async callbackGoogle(req: Request, res: Response, next: NextFunction) {
 		try {
-			const { code, state: credentialId } = req.query;
-			if (!code || !credentialId) throw new Error('Parâmetros inválidos no callback do Google.');
-			await credentialService.finishGoogleAuth(String(credentialId), String(code));
-			// Redireciona de volta para o dashboard
-			return res.send(
-				'<h1>Autenticação concluída!</h1><p>Você já pode fechar esta aba e voltar ao dashboard do Hermes.</p>',
-			);
+			const { code, state } = req.query;
+			if (!code || !state) throw new Error('Parâmetros inválidos no callback do Google.');
+
+			const [serviceId, credentialId] = String(state).split(':');
+
+			await credentialService.finishGoogleAuth(credentialId, String(code));
+
+			// Redireciona de volta para o dashboard (Frontend)
+			const frontendUrl = (process.env.AUTH_TRUSTED_ORIGINS || 'http://localhost:3000').split(',')[0];
+			return res.redirect(`${frontendUrl}/system/services/${serviceId}?auth=success`);
 		} catch (error) {
 			next(error);
 		}
