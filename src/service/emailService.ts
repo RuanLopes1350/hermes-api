@@ -175,7 +175,7 @@ class EmailService {
 				data: {
 					emailId: dbEmail.id,
 					serviceId: serviceId,
-					variables: dbEmail.variables,
+					variables: dbEmail.variables as Record<string, any> | undefined,
 				},
 				opts: {
 					priority: bullPriority,
