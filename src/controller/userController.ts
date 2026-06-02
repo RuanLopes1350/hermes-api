@@ -83,6 +83,21 @@ class UserController {
 			next(error);
 		}
 	}
+
+	// PATCH /api/users/:id/admin
+	// Atualiza permissões (isAdmin) ou status (isActive). Restrito a administradores.
+	async adminUpdateUser(req: Request, res: Response, next: NextFunction) {
+		const id = String(req.params.id);
+		console.log(chalk.cyan(`[${getTimestamp()}] [PATCH] /api/users/${id}/admin`));
+		try {
+			const requesterIsAdmin = req.user!.isAdmin ?? false;
+
+			const updated = await userService.adminUpdateUser(id, req.body, requesterIsAdmin);
+			return CommonResponse.success(res, updated, 200, 'Permissões do usuário atualizadas com sucesso.');
+		} catch (error) {
+			next(error);
+		}
+	}
 }
 
 export default new UserController();

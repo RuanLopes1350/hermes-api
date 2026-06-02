@@ -18,6 +18,7 @@ declare global {
 				email: string;
 				emailVerified: boolean;
 				isAdmin: boolean | null; // Better Auth pode retornar null quando não configurado
+				isActive: boolean | null;
 				image?: string | null;
 				createdAt: Date;
 				updatedAt: Date;
@@ -83,8 +84,22 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 		req.user = {
 			...sessionData.user,
 			isAdmin: !!sessionData.user.isAdmin,
+			isActive: sessionData.user.isActive !== false,
 		};
 		req.session = sessionData.session;
+
+		if (!req.user.isActive) {
+			console.warn(chalk.yellow(`[requireAuth] Acesso bloqueado para usuário inativo: ${req.user.email}`));
+			CommonResponse.error(
+				res,
+				HttpStatusCode.FORBIDDEN.code,
+				'ACCOUNT_INACTIVE',
+				null,
+				[],
+				'Esta conta foi desativada pelo administrador.',
+			);
+			return;
+		}
 
 		// Passa para o próximo middleware ou controller
 		next();

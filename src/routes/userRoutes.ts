@@ -17,6 +17,9 @@ router.get('/users/:id', requireAuth, userController.getUser.bind(userController
 // PATCH /users/:id — atualiza nome/imagem (admin ou próprio)
 router.patch('/users/:id', requireAuth, userController.updateUser.bind(userController));
 
+// PATCH /users/:id/admin — atualiza isAdmin/isActive (admin only)
+router.patch('/users/:id/admin', requireAuth, userController.adminUpdateUser.bind(userController));
+
 // DELETE /users/:id — deleta (admin only — verificação no Service)
 router.delete('/users/:id', requireAuth, userController.deleteUser.bind(userController));
 

@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import { auth } from '../utils/auth.js';
-import { createUserSchema, updateUserSchema } from '../utils/validation/userValidation.js';
+import { createUserSchema, updateUserSchema, adminUpdateUserSchema } from '../utils/validation/userValidation.js';
 import { isAPIError } from 'better-auth/api';
 import HttpStatusCode from '../utils/helpers/httpStatusCode.js';
 import { DomainError } from '../utils/helpers/domainError.js';
@@ -141,6 +141,48 @@ class UserService {
 		console.log(
 			chalk.green.bold(
 				`[${getTimestamp()}] [SUCCESS] [UserService] Usuário atualizado: ${targetId}`,
+			),
+		);
+		return updated;
+	}
+
+	// Atualiza permissões ou status (isAdmin, isActive). Exclusivo para administradores.
+	//
+	async adminUpdateUser(
+		targetId: string,
+		data: unknown,
+		requesterIsAdmin: boolean,
+	) {
+		console.log(
+			chalk.blue.bold(`[${getTimestamp()}] [INFO] [UserService] Admin atualizando usuário: ${targetId}`),
+		);
+
+		if (!requesterIsAdmin) {
+			throw new UserServiceError(
+				'Apenas administradores podem promover usuários ou desativar contas.',
+				HttpStatusCode.FORBIDDEN.code,
+				'FORBIDDEN',
+			);
+		}
+
+		const parsedData = adminUpdateUserSchema.parse(data);
+
+		const cleanedData = Object.fromEntries(
+			Object.entries(parsedData).filter(([, value]) => value !== undefined),
+		) as { isAdmin?: boolean; isActive?: boolean };
+
+		const updated = await userRepository.updateById(targetId, cleanedData);
+		if (!updated) {
+			throw new UserServiceError(
+				'Usuário não encontrado.',
+				HttpStatusCode.NOT_FOUND.code,
+				'USER_NOT_FOUND',
+			);
+		}
+
+		console.log(
+			chalk.green.bold(
+				`[${getTimestamp()}] [SUCCESS] [UserService] Usuário atualizado (Admin): ${targetId}`,
 			),
 		);
 		return updated;
