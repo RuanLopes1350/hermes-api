@@ -43,6 +43,41 @@ class EmailController {
 		}
 	}
 
+	// POST /api/services/:serviceId/emails/bulk
+	// Enfileira um array de e-mails em lote.
+	async createBulk(req: Request, res: Response, next: NextFunction) {
+		console.log(
+			chalk.cyan(`[${getTimestamp()}] [POST] /api/services/${req.params.serviceId}/emails/bulk`),
+		);
+		try {
+			const verifiedServiceId = req.serviceId!;
+			const verifiedCredentialId = req.credentialId!;
+			const urlServiceId = String(req.params.serviceId);
+
+			if (urlServiceId !== verifiedServiceId) {
+				return CommonResponse.error(
+					res,
+					403,
+					'FORBIDDEN',
+					null,
+					[],
+					'API Key não pertence a este serviço.',
+				);
+			}
+
+			const result = await emailService.createBulkEmails(
+				verifiedServiceId,
+				req.body,
+				verifiedServiceId,
+				verifiedCredentialId,
+			);
+
+			return CommonResponse.created(res, result, result.message);
+		} catch (error) {
+			next(error);
+		}
+	}
+
 	// GET /api/services/:serviceId/emails?status=pending
 	async list(req: Request, res: Response, next: NextFunction) {
 		console.log(

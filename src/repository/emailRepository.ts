@@ -45,6 +45,42 @@ class EmailRepository {
 		}
 	}
 
+	// Registra uma lista de e-mails de uma vez (Bulk Insert)
+	async createBulk(items: {
+		serviceId: string;
+		credentialId?: string;
+		templateId?: string;
+		subject: string;
+		recipientTo: string;
+		body?: string;
+		variables?: Record<string, any>;
+		scheduledAt?: Date;
+		priority?: 'high' | 'medium' | 'low';
+	}[]) {
+		console.log(
+			chalk.magenta(`[${getTimestamp()}] [DB] [EmailRepository] Inserindo ${items.length} e-mails em lote...`),
+		);
+		try {
+			const valuesToInsert = items.map(item => ({
+				id: uuidv4(),
+				service_id: item.serviceId,
+				credential_id: item.credentialId,
+				service_template_id: item.templateId,
+				subject: item.subject,
+				recipient_to: item.recipientTo,
+				body: item.body,
+				variables: item.variables ?? {},
+				scheduled_at: item.scheduledAt,
+				priority: item.priority ?? 'medium',
+			}));
+			
+			const newEmails = await db.insert(email).values(valuesToInsert).returning();
+			return newEmails;
+		} catch (error) {
+			throw parseDatabaseError(error, 'EmailRepository.createBulk');
+		}
+	}
+
 	// Lista os e-mails de um serviço, com filtro opcional de status.
 	async findAllByService(serviceId: string, status?: string) {
 		console.log(

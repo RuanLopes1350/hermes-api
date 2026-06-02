@@ -14,6 +14,14 @@ router.post(
 	emailController.create.bind(emailController),
 );
 
+// POST BULK — envio em lote com autenticação por API Key
+router.post(
+	'/services/:serviceId/emails/bulk',
+	requireApiKey,
+	emailApiRateLimiter,
+	emailController.createBulk.bind(emailController),
+);
+
 // GET — autenticação por sessão (para o dashboard visualizar os e-mails)
 router.get('/services/:serviceId/emails', requireAuth, emailController.list.bind(emailController));
 router.get(

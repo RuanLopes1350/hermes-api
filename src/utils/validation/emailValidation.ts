@@ -28,3 +28,8 @@ export const createEmailSchema = z
 	});
 
 export type CreateEmailInput = z.infer<typeof createEmailSchema>;
+
+// Schema para enfileiramento em lote
+export const createBulkEmailSchema = z.array(createEmailSchema).min(1, 'O array deve conter pelo menos 1 e-mail.').max(1000, 'O limite é de 1000 e-mails por lote.');
+
+export type CreateBulkEmailInput = z.infer<typeof createBulkEmailSchema>;

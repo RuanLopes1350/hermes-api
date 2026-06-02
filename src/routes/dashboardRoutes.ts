@@ -7,5 +7,6 @@ const router = Router();
 // Rotas de Dashboard
 router.get('/dashboard/admin', requireAuth, dashboardController.getAdminDashboard.bind(dashboardController));
 router.get('/dashboard/user', requireAuth, dashboardController.getUserDashboard.bind(dashboardController));
+router.get('/dashboard/stream', requireAuth, dashboardController.streamQueueEvents.bind(dashboardController));
 
 export default router;
