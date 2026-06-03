@@ -105,13 +105,20 @@ export async function processApiKeyRotation() {
 						);
 
 						const { fullApiKey, keyHash, prefix } = await generateSecureApiKey();
+						const rotationIntervalDays = settings?.security?.rotation_interval_days || null;
+						let newExpiresAt = null;
+						if (rotationIntervalDays) {
+							newExpiresAt = new Date();
+							newExpiresAt.setDate(newExpiresAt.getDate() + rotationIntervalDays);
+						}
+
 						const newKey = await apiKeyRepository.createApiKey({
 							name: `${data.keyName} (Auto-rotated)`,
 							keyHash,
 							prefix,
 							serviceId: data.serviceId,
-							credentialId: data.credentialId, // PASSA O VÍNCULO OBRIGATÓRIO
-							expiresAt: null,
+							credentialId: data.credentialId, 
+							expiresAt: newExpiresAt,
 						});
 
 						rotationData = { new_key_id: newKey.id, new_token: fullApiKey };

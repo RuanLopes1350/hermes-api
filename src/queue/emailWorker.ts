@@ -9,6 +9,7 @@ import { EmailJobPayload } from './emailQueue.js';
 import emailRepository from '../repository/emailRepository.js';
 import credentialRepository from '../repository/credentialRepository.js';
 import templateRepository from '../repository/templateRepository.js';
+import serviceRepository from '../repository/serviceRepository.js';
 import { decrypt } from '../service/credentialService.js';
 import { renderTemplate } from '../utils/renderTemplate.js';
 
@@ -30,6 +31,12 @@ async function processEmailJob(job: Job<EmailJobPayload>) {
 	if (mailData.status === 'sent') {
 		console.log(chalk.gray(`[${getTimestamp()}] [WORKER] Email ${emailId} já enviado. Pulando.`));
 		return;
+	}
+
+	// Busca dados do serviço para carregar settings (como BCC)
+	const serviceData = await serviceRepository.findById(serviceId);
+	if (!serviceData) {
+		throw new Error(`Serviço ID ${serviceId} não encontrado ou deletado.`);
 	}
 
 	// 2. Definir e buscar Credencial
@@ -120,12 +127,19 @@ async function processEmailJob(job: Job<EmailJobPayload>) {
 
 	// 5. Enviar E-mail via Nodemailer
 	try {
-		await transporter.sendMail({
+		const sendOptions: any = {
 			from: credentialData.login,
 			to: mailData.recipient_to,
 			subject: finalSubject,
 			html: finalHtml,
-		});
+		};
+
+		const settings = serviceData.settings as any;
+		if (settings && settings.auditBccEmail) {
+			sendOptions.bcc = settings.auditBccEmail;
+		}
+
+		await transporter.sendMail(sendOptions);
 
 		await emailRepository.updateStatus(emailId, {
 			status: 'sent',

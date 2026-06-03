@@ -76,6 +76,18 @@ class ApiKeyController {
 			next(error);
 		}
 	}
+
+	async rotate(req: Request, res: Response, next: NextFunction) {
+		console.log(chalk.cyan(`[${getTimestamp()}] [POST] /api/services/${req.params.serviceId}/api-keys/${req.params.id}/rotate`));
+		try {
+			const id = String(req.params.id);
+			const userId = req.user!.id;
+			const result = await apiKeyService.rotateApiKey(id, userId);
+			return CommonResponse.success(res, result, 200, 'API Key rotacionada com sucesso.');
+		} catch (error) {
+			next(error);
+		}
+	}
 }
 
 export default new ApiKeyController();

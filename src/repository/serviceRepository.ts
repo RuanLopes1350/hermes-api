@@ -66,6 +66,25 @@ class ServiceRepository {
 		}
 	}
 
+	// Busca um serviço pelo ID (usado por rotinas de background, como workers)
+	async findById(serviceId: string) {
+		console.log(
+			chalk.magenta(`[${getTimestamp()}] [DB] [ServiceRepository] Buscando serviço (worker): ${serviceId}`),
+		);
+		try {
+			const [found] = await db
+				.select()
+				.from(service)
+				.where(
+					and(eq(service.id, serviceId), isNull(service.deletedAt)),
+				)
+				.limit(1);
+			return found ?? null;
+		} catch (error) {
+			throw parseDatabaseError(error, 'ServiceRepository.findById');
+		}
+	}
+
 	// Atualiza nome e/ou settings de um serviço.
 	async updateById(serviceId: string, data: { name?: string; settings?: any }) {
 		console.log(

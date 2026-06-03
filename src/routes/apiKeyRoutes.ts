@@ -38,6 +38,12 @@ router.delete(
 	apiKeyController.revoke.bind(apiKeyController),
 );
 
+router.post(
+	'/services/:serviceId/api-keys/:id/rotate',
+	requireAuth,
+	apiKeyController.rotate.bind(apiKeyController),
+);
+
 // Mantendo compatibilidade temporária
 router.get('/keys', requireAuth, apiKeyController.list.bind(apiKeyController));
 

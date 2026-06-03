@@ -2,11 +2,12 @@ import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import apiKeyRepository from '../repository/apiKeyRepository.js';
 import serviceRepository from '../repository/serviceRepository.js';
-import credentialRepository from '../repository/credentialRepository.js'; // NOVO: Para validar a credencial
+import credentialRepository from '../repository/credentialRepository.js'; 
 import { createApiKeySchema, updateApiKeySchema } from '../utils/validation/apiKeyValidation.js';
 import HttpStatusCode from '../utils/helpers/httpStatusCode.js';
 import { DomainError } from '../utils/helpers/domainError.js';
 import { generateSecureApiKey } from '../utils/apiKeyGenerate.js';
+import { dispatchWebhook } from '../utils/webhookDispatcher.js';
 
 // Erro de domínio para o contexto de API Keys
 export class ApiKeyDomainError extends DomainError {
@@ -106,6 +107,68 @@ class ApiKeyService {
 		await this.getApiKey(keyId, userId);
 		const deleted = await apiKeyRepository.softDeleteById(keyId);
 		return { id: deleted.id };
+	}
+
+	async rotateApiKey(keyId: string, userId: string) {
+		// 1. Pega a chave antiga e garante que o usuário é dono do serviço
+		const oldKey = await this.getApiKey(keyId, userId);
+		const serviceData = await serviceRepository.findById(oldKey.service_id);
+		
+		if (!serviceData) {
+			throw new ApiKeyDomainError('Serviço não encontrado.', 404, 'SERVICE_NOT_FOUND');
+		}
+
+		// 2. Gera a nova chave copiando os dados da antiga
+		const { fullApiKey, keyHash, prefix } = await generateSecureApiKey();
+		
+		const settings = serviceData.settings as any;
+		const rotationIntervalDays = settings?.security?.rotation_interval_days || null;
+		let newExpiresAt = null;
+		if (rotationIntervalDays) {
+			newExpiresAt = new Date();
+			newExpiresAt.setDate(newExpiresAt.getDate() + rotationIntervalDays);
+		}
+
+		const newApiKey = await apiKeyRepository.createApiKey({
+			name: `${oldKey.name} (Rotacionada)`,
+			keyHash: keyHash,
+			prefix: prefix,
+			serviceId: oldKey.service_id,
+			credentialId: oldKey.credential_id, 
+			expiresAt: newExpiresAt,
+		});
+
+		// 3. Define Grace Period de 48h na chave antiga
+		const gracePeriodEndsAt = new Date();
+		gracePeriodEndsAt.setHours(gracePeriodEndsAt.getHours() + 48);
+		
+		await apiKeyRepository.updateById(keyId, {
+			expiresAt: gracePeriodEndsAt
+		});
+
+		// 4. Se tiver webhook configurado, dispara
+		const webhookUrl = settings?.notifications?.webhook_url;
+		const webhookSecret = settings?.notifications?.webhook_secret;
+
+		if (webhookUrl && webhookSecret) {
+			try {
+				await dispatchWebhook(webhookUrl, webhookSecret, {
+					event: "api_key.rotated",
+					serviceId: oldKey.service_id,
+					oldKeyId: keyId,
+					newApiKey: fullApiKey,
+					gracePeriodEndsAt: gracePeriodEndsAt.toISOString()
+				});
+			} catch (e: any) {
+				console.error(chalk.yellow(`[ApiKeyService] Aviso: Webhook de rotação falhou, mas a chave foi rotacionada.`));
+			}
+		}
+
+		return {
+			...newApiKey,
+			token: fullApiKey,
+			aviso: 'Chave rotacionada. A chave antiga expirará em 48 horas.'
+		};
 	}
 }
 
