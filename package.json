@@ -16,6 +16,7 @@
     "clear": "rm -rf dist && rm -rf node_modules && npm install",
     "format": "prettier --write \"src/**/*.{ts,js,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,js,json}\"",
+    "docs:generate": "tsx src/docs/swagger.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit migrate",
@@ -36,6 +37,7 @@
     "transactional"
   ],
   "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^8.5.0",
     "argon2": "^0.44.0",
     "axios": "^1.16.1",
     "better-auth": "^1.5.5",
@@ -58,6 +60,7 @@
     "pg": "^8.20.0",
     "postgres": "^3.4.8",
     "rate-limit-redis": "^4.3.1",
+    "swagger-ui-express": "^5.0.1",
     "typescript": "^5.9.3",
     "uuid": "^13.0.0",
     "zod": "^4.3.6"
@@ -73,9 +76,11 @@
     "@types/node-cron": "^3.0.11",
     "@types/nodemailer": "^7.0.11",
     "@types/pg": "^8.18.0",
+    "@types/swagger-ui-express": "^4.1.8",
     "drizzle-kit": "^0.31.10",
     "prettier": "^3.8.1",
     "ts-node": "^10.9.2",
-    "tsx": "^4.21.0"
+    "tsx": "^4.21.0",
+    "z-schema": "^12.3.1"
   }
 }

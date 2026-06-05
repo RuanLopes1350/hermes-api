@@ -7,6 +7,13 @@ import { toNodeHandler } from 'better-auth/node';
 import { auth } from './utils/auth.js';
 import { isAPIError } from 'better-auth/api';
 import { errorHandler } from './middlewares/errorHandler.js';
+import swaggerUi from 'swagger-ui-express';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Importação das rotas
 import userRouter from './routes/userRoutes.js';
@@ -81,6 +88,18 @@ app.get('/', (req, res) => {
 app.get('/api/health', (req, res) => {
 	res.json({ message: `Hermes API rodando. UpTime: ${process.uptime().toFixed(2)}s` });
 });
+
+try {
+	const swaggerFile = path.resolve(__dirname, 'swagger-output.json');
+	if (fs.existsSync(swaggerFile)) {
+		const swaggerDocument = JSON.parse(fs.readFileSync(swaggerFile, 'utf8'));
+		app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+	} else {
+		console.log(chalk.yellow(`[Swagger] Arquivo swagger-output.json não encontrado. Rode "npm run docs:generate" para criá-lo.`));
+	}
+} catch (error) {
+	console.error(chalk.red(`[Swagger] Erro ao carregar documentação: ${error}`));
+}
 
 app.use('/api', userRouter);
 app.use('/api', serviceRouter);

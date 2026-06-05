@@ -8,26 +8,11 @@ class EmailController {
 	// POST /api/services/:serviceId/emails
 	// Enfileira um e-mail (autenticação por API Key).
 	async create(req: Request, res: Response, next: NextFunction) {
-		console.log(
-			chalk.cyan(`[${getTimestamp()}] [POST] /api/services/${req.params.serviceId}/emails`),
-		);
+		console.log(chalk.cyan(`[${getTimestamp()}] [POST] /api/emails`));
 		try {
 			// SEGURANÇA: Usamos os IDs injetados pelo middleware requireApiKey
 			const verifiedServiceId = req.serviceId!;
 			const verifiedCredentialId = req.credentialId!;
-
-			// Validar se o ID da URL bate com o da API Key
-			const urlServiceId = String(req.params.serviceId);
-			if (urlServiceId !== verifiedServiceId) {
-				return CommonResponse.error(
-					res,
-					403,
-					'FORBIDDEN',
-					null,
-					[],
-					'API Key não pertence a este serviço.',
-				);
-			}
 
 			// Chamamos o service passando o Service ID e a Credencial ID vinculada à chave
 			const newEmail = await emailService.createEmail(
@@ -46,24 +31,10 @@ class EmailController {
 	// POST /api/services/:serviceId/emails/bulk
 	// Enfileira um array de e-mails em lote.
 	async createBulk(req: Request, res: Response, next: NextFunction) {
-		console.log(
-			chalk.cyan(`[${getTimestamp()}] [POST] /api/services/${req.params.serviceId}/emails/bulk`),
-		);
+		console.log(chalk.cyan(`[${getTimestamp()}] [POST] /api/emails/bulk`));
 		try {
 			const verifiedServiceId = req.serviceId!;
 			const verifiedCredentialId = req.credentialId!;
-			const urlServiceId = String(req.params.serviceId);
-
-			if (urlServiceId !== verifiedServiceId) {
-				return CommonResponse.error(
-					res,
-					403,
-					'FORBIDDEN',
-					null,
-					[],
-					'API Key não pertence a este serviço.',
-				);
-			}
 
 			const result = await emailService.createBulkEmails(
 				verifiedServiceId,

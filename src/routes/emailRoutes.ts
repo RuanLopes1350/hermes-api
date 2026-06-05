@@ -8,7 +8,7 @@ const router = Router();
 
 // POST — autenticação por API Key (para sistemas externos enviarem e-mails)
 router.post(
-	'/services/:serviceId/emails',
+	'/emails',
 	requireApiKey,
 	emailApiRateLimiter,
 	emailController.create.bind(emailController),
@@ -16,7 +16,7 @@ router.post(
 
 // POST BULK — envio em lote com autenticação por API Key
 router.post(
-	'/services/:serviceId/emails/bulk',
+	'/emails/bulk',
 	requireApiKey,
 	emailApiRateLimiter,
 	emailController.createBulk.bind(emailController),
