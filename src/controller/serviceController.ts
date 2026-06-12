@@ -110,6 +110,20 @@ class ServiceController {
 			next(error);
 		}
 	}
+
+	async listLogs(req: Request, res: Response, next: NextFunction) {
+		const id = String(req.params.id);
+		const limit = req.query.limit ? parseInt(String(req.query.limit)) : 50;
+		const offset = req.query.offset ? parseInt(String(req.query.offset)) : 0;
+
+		console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/services/${id}/logs`));
+		try {
+			const logs = await serviceService.listLogs(id, limit, offset, req.user);
+			return CommonResponse.success(res, logs, 200, 'Logs encontrados.');
+		} catch (error) {
+			next(error);
+		}
+	}
 }
 
 export default new ServiceController();

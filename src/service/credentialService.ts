@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import credentialRepository from '../repository/credentialRepository.js';
 import serviceRepository from '../repository/serviceRepository.js';
+import serviceLogRepository from '../repository/serviceLogRepository.js';
 import {
 	createCredentialSchema,
 	updateCredentialSchema,
@@ -120,6 +121,14 @@ class CredentialService {
 			});
 		}
 
+		await serviceLogRepository.insertLog({
+			service_id: serviceId,
+			actor_id: userId,
+			action: 'CREDENTIAL_CREATED',
+			description: `Criou a credencial "${newCredential.name}"`,
+			metadata: { credential_id: newCredential.id },
+		});
+
 		return {
 			credential: newCredential,
 			key: rawKey,
@@ -147,6 +156,14 @@ class CredentialService {
 		const [serviceId, credentialId] = String(state).split(':');
 
 		await this.finishGoogleAuth(credentialId, String(code));
+
+		await serviceLogRepository.insertLog({
+			service_id: serviceId,
+			actor_id: null,
+			action: 'CREDENTIAL_OAUTH_LINKED',
+			description: `A credencial vinculou com sucesso o token OAuth2 no Google`,
+			metadata: { credential_id: credentialId },
+		});
 
 		const frontendUrl = (process.env.AUTH_TRUSTED_ORIGINS || 'http://localhost:3000').split(',')[0];
 		return `${frontendUrl}/system/services/${serviceId}?auth=success`;
@@ -220,7 +237,17 @@ class CredentialService {
 		if (data.passkey) updateData.passkey = encryptPasskey(data.passkey);
 		if (data.clientSecret) updateData.client_secret = encryptPasskey(data.clientSecret);
 
-		return await credentialRepository.updateById(credentialId, updateData);
+		const updated = await credentialRepository.updateById(credentialId, updateData);
+
+		await serviceLogRepository.insertLog({
+			service_id: serviceId,
+			actor_id: userId,
+			action: 'CREDENTIAL_UPDATED',
+			description: `Atualizou a credencial "${cred.name}"`,
+			metadata: { credential_id: credentialId },
+		});
+
+		return updated;
 	}
 
 	async deleteCredential(serviceId: string, credentialId: string, userId: string) {
@@ -235,7 +262,17 @@ class CredentialService {
 			);
 		}
 
-		return await credentialRepository.deleteById(credentialId);
+		const deleted = await credentialRepository.deleteById(credentialId);
+
+		await serviceLogRepository.insertLog({
+			service_id: serviceId,
+			actor_id: userId,
+			action: 'CREDENTIAL_DELETED',
+			description: `Excluiu a credencial "${cred.name}"`,
+			metadata: { credential_id: credentialId },
+		});
+
+		return deleted;
 	}
 }
 

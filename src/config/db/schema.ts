@@ -179,3 +179,15 @@ export const email = pgTable('email', {
 	createdAt: timestamp('created_at').notNull().defaultNow(),
 	deletedAt: timestamp('deleted_at'),
 });
+
+export const service_log = pgTable('service_log', {
+	id: text('id').primaryKey().notNull(),
+	service_id: text('service_id')
+		.notNull()
+		.references(() => service.id, { onDelete: 'cascade' }),
+	actor_id: text('actor_id').references(() => user.id, { onDelete: 'set null' }),
+	action: varchar('action').notNull(),
+	description: text('description').notNull(),
+	metadata: jsonb('metadata'),
+	createdAt: timestamp('created_at').notNull().defaultNow(),
+});

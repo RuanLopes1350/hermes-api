@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import templateRepository from '../repository/templateRepository.js';
 import serviceRepository from '../repository/serviceRepository.js';
+import serviceLogRepository from '../repository/serviceLogRepository.js';
 import {
 	createTemplateSchema,
 	updateTemplateSchema,
@@ -82,6 +83,16 @@ class TemplateService {
 			htmlContent: parsedData.html_content,
 			textContent: parsedData.text_content,
 		});
+
+		if (newTemplate.service_id) {
+			await serviceLogRepository.insertLog({
+				service_id: newTemplate.service_id,
+				actor_id: userId,
+				action: 'TEMPLATE_CREATED',
+				description: `Criou o template "${newTemplate.name}"`,
+				metadata: { template_id: newTemplate.id },
+			});
+		}
 
 		console.log(
 			chalk.green.bold(
@@ -176,7 +187,7 @@ class TemplateService {
 		const userId = currentUser.id;
 
 		// Verifica propriedade
-		await this.ensureOwnership(templateId, userId);
+		const found = await this.ensureOwnership(templateId, userId);
 
 		const parsedData = updateTemplateSchema.parse(data);
 
@@ -197,13 +208,34 @@ class TemplateService {
 			);
 		}
 
+		if (updated.service_id) {
+			await serviceLogRepository.insertLog({
+				service_id: updated.service_id,
+				actor_id: userId,
+				action: 'TEMPLATE_UPDATED',
+				description: `Atualizou o template "${updated.name}"`,
+				metadata: { template_id: templateId },
+			});
+		}
+
 		return updated;
 	}
 
 	async deleteTemplate(templateId: string, currentUser: any) {
 		const userId = currentUser.id;
-		await this.ensureOwnership(templateId, userId);
+		const found = await this.ensureOwnership(templateId, userId);
 		const deleted = await templateRepository.softDeleteById(templateId);
+
+		if (found.service_id) {
+			await serviceLogRepository.insertLog({
+				service_id: found.service_id,
+				actor_id: userId,
+				action: 'TEMPLATE_DELETED',
+				description: `Excluiu o template "${found.name}"`,
+				metadata: { template_id: templateId },
+			});
+		}
+
 		return { id: deleted!.id };
 	}
 }

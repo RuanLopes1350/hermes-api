@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import serviceRepository from '../repository/serviceRepository.js';
+import serviceLogRepository from '../repository/serviceLogRepository.js';
 import { createServiceSchema, updateServiceSchema } from '../utils/validation/serviceValidation.js';
 import HttpStatusCode from '../utils/helpers/httpStatusCode.js';
 import { DomainError } from '../utils/helpers/domainError.js';
@@ -33,6 +34,14 @@ class ServiceService {
 				`[${getTimestamp()}] [SUCCESS] [ServiceService] Serviço criado: ${newService.id}`,
 			),
 		);
+
+		await serviceLogRepository.insertLog({
+			service_id: newService.id,
+			actor_id: userId,
+			action: 'SERVICE_CREATED',
+			description: `Criou o serviço "${newService.name}"`,
+		});
+
 		return newService;
 	}
 
@@ -106,6 +115,14 @@ class ServiceService {
 				`[${getTimestamp()}] [SUCCESS] [ServiceService] Serviço atualizado: ${serviceId}`,
 			),
 		);
+
+		await serviceLogRepository.insertLog({
+			service_id: serviceId,
+			actor_id: userId,
+			action: 'SERVICE_UPDATED',
+			description: `Atualizou as configurações do serviço`,
+		});
+
 		return updated;
 	}
 
@@ -134,6 +151,14 @@ class ServiceService {
 				`[${getTimestamp()}] [SUCCESS] [ServiceService] Serviço soft-deletado: ${serviceId}`,
 			),
 		);
+
+		await serviceLogRepository.insertLog({
+			service_id: serviceId,
+			actor_id: userId,
+			action: 'SERVICE_DELETED',
+			description: `Excluiu o serviço "${access.service.name}"`,
+		});
+
 		return { id: deleted!.id };
 	}
 
@@ -187,6 +212,15 @@ class ServiceService {
 				user_id: targetUser.id,
 				role: 'member',
 			});
+
+			await serviceLogRepository.insertLog({
+				service_id: serviceId,
+				actor_id: userId,
+				action: 'MEMBER_ADDED',
+				description: `Adicionou o usuário ${email} como membro`,
+				metadata: { target_user_id: targetUser.id, email },
+			});
+
 			return { success: true };
 		} catch (e: any) {
 			if (e.code === '23505')
@@ -214,6 +248,15 @@ class ServiceService {
 			.where(
 				and(eq(service_member.service_id, serviceId), eq(service_member.user_id, targetUserId)),
 			);
+
+		await serviceLogRepository.insertLog({
+			service_id: serviceId,
+			actor_id: userId,
+			action: 'MEMBER_REMOVED',
+			description: `Removeu um membro do serviço`,
+			metadata: { target_user_id: targetUserId },
+		});
+
 		return { success: true };
 	}
 
@@ -249,7 +292,34 @@ class ServiceService {
 					and(eq(service_member.service_id, serviceId), eq(service_member.user_id, newOwnerId)),
 				);
 		});
+
+		await serviceLogRepository.insertLog({
+			service_id: serviceId,
+			actor_id: userId,
+			action: 'OWNERSHIP_TRANSFERRED',
+			description: `Transferiu a posse do serviço para o membro ${targetMember.user_id}`,
+			metadata: { new_owner_id: newOwnerId },
+		});
+
 		return { success: true };
+	}
+
+	// ==================== LOGS ====================
+	async listLogs(serviceId: string, limit: number, offset: number, currentUser: any) {
+		const userId = currentUser.id;
+		let access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
+		if (!access && currentUser.isAdmin) access = { service: {} as any, role: 'owner' };
+
+		// Somente o dono ou admin podem ver os logs
+		if (!access || (access.role !== 'owner' && !currentUser.isAdmin)) {
+			throw new ServiceDomainError(
+				'Acesso negado. Apenas donos e admins podem visualizar o histórico.',
+				403,
+				'FORBIDDEN',
+			);
+		}
+
+		return await serviceLogRepository.findLogsByService(serviceId, limit, offset);
 	}
 }
 

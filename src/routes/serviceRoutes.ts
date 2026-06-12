@@ -14,6 +14,7 @@ router.delete(
 	requireAuth,
 	serviceController.deleteService.bind(serviceController),
 );
+router.get('/services/:id/logs', requireAuth, serviceController.listLogs.bind(serviceController));
 
 // Member Routes
 router.get(

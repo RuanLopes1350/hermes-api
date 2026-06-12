@@ -50,12 +50,18 @@ class ServiceRepository {
 				.select({
 					service: service,
 					ownerName: user.name,
+					ownerEmail: user.email,
 				})
 				.from(service)
 				.leftJoin(user, eq(service.creator_id, user.id))
 				.where(isNull(service.deletedAt));
 
-			return rows.map((r) => ({ ...r.service, _role: 'owner', ownerName: r.ownerName }));
+			return rows.map((r) => ({
+				...r.service,
+				_role: 'owner',
+				ownerName: r.ownerName,
+				ownerEmail: r.ownerEmail,
+			}));
 		} catch (error) {
 			throw parseDatabaseError(error, 'ServiceRepository.findAllForAdmin');
 		}
@@ -73,13 +79,19 @@ class ServiceRepository {
 					service: service,
 					role: service_member.role,
 					ownerName: user.name,
+					ownerEmail: user.email,
 				})
 				.from(service)
 				.innerJoin(service_member, eq(service.id, service_member.service_id))
 				.leftJoin(user, eq(service.creator_id, user.id))
 				.where(and(eq(service_member.user_id, userId), isNull(service.deletedAt)));
 
-			return rows.map((r) => ({ ...r.service, _role: r.role, ownerName: r.ownerName }));
+			return rows.map((r) => ({
+				...r.service,
+				_role: r.role,
+				ownerName: r.ownerName,
+				ownerEmail: r.ownerEmail,
+			}));
 		} catch (error) {
 			throw parseDatabaseError(error, 'ServiceRepository.findAllByUser');
 		}
