@@ -40,9 +40,12 @@ class ServiceService {
 		const userId = currentUser.id;
 		console.log(
 			chalk.blue.bold(
-				`[${getTimestamp()}] [INFO] [ServiceService] Listando serviços do usuário: ${userId}`,
+				`[${getTimestamp()}] [INFO] [ServiceService] Listando serviços do usuário: ${userId} (isAdmin: ${currentUser.isAdmin})`,
 			),
 		);
+		if (currentUser.isAdmin) {
+			return serviceRepository.findAllForAdmin();
+		}
 		return serviceRepository.findAllByUser(userId);
 	}
 
@@ -53,14 +56,23 @@ class ServiceService {
 		);
 
 		const found = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		if (!found) {
+		if (!found && !currentUser.isAdmin) {
 			throw new ServiceDomainError(
 				'Serviço não encontrado ou você não tem permissão para acessá-lo.',
 				HttpStatusCode.NOT_FOUND.code,
 				'SERVICE_NOT_FOUND',
 			);
 		}
-		return { ...found.service, _role: found.role };
+
+		if (!found && currentUser.isAdmin) {
+			// Busca de forma bruta só para o admin
+			const rawService = await serviceRepository.findById(serviceId);
+			if (!rawService)
+				throw new ServiceDomainError('Serviço não encontrado.', 404, 'SERVICE_NOT_FOUND');
+			return { ...rawService, _role: 'owner' };
+		}
+
+		return { ...found!.service, _role: currentUser.isAdmin ? 'owner' : found!.role };
 	}
 
 	async updateService(serviceId: string, data: unknown, currentUser: any) {
@@ -71,9 +83,14 @@ class ServiceService {
 			),
 		);
 
-		const access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		if (!access) throw new ServiceDomainError('Serviço não encontrado.', 404, 'SERVICE_NOT_FOUND');
-		if (access.role !== 'owner') {
+		let access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
+		if (!access && currentUser.isAdmin) {
+			access = { service: (await serviceRepository.findById(serviceId)) as any, role: 'owner' };
+		}
+
+		if (!access || !access.service)
+			throw new ServiceDomainError('Serviço não encontrado.', 404, 'SERVICE_NOT_FOUND');
+		if (access.role !== 'owner' && !currentUser.isAdmin) {
 			throw new ServiceDomainError(
 				'Apenas o dono do serviço pode alterar suas configurações.',
 				403,
@@ -100,9 +117,14 @@ class ServiceService {
 			),
 		);
 
-		const access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		if (!access) throw new ServiceDomainError('Serviço não encontrado.', 404, 'SERVICE_NOT_FOUND');
-		if (access.role !== 'owner') {
+		let access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
+		if (!access && currentUser.isAdmin) {
+			access = { service: (await serviceRepository.findById(serviceId)) as any, role: 'owner' };
+		}
+
+		if (!access || !access.service)
+			throw new ServiceDomainError('Serviço não encontrado.', 404, 'SERVICE_NOT_FOUND');
+		if (access.role !== 'owner' && !currentUser.isAdmin) {
 			throw new ServiceDomainError('Apenas o dono do serviço pode excluí-lo.', 403, 'FORBIDDEN');
 		}
 
@@ -119,7 +141,9 @@ class ServiceService {
 
 	async listMembers(serviceId: string, currentUser: any) {
 		const userId = currentUser.id;
-		const access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
+		let access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
+		if (!access && currentUser.isAdmin) access = { service: {} as any, role: 'owner' };
+
 		if (!access) throw new ServiceDomainError('Acesso negado.', 403, 'FORBIDDEN');
 
 		const members = await db
@@ -138,8 +162,10 @@ class ServiceService {
 
 	async addMember(serviceId: string, email: string, currentUser: any) {
 		const userId = currentUser.id;
-		const access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		if (!access || access.role !== 'owner')
+		let access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
+		if (!access && currentUser.isAdmin) access = { service: {} as any, role: 'owner' };
+
+		if (!access || (access.role !== 'owner' && !currentUser.isAdmin))
 			throw new ServiceDomainError(
 				'Acesso negado. Apenas o dono pode convidar membros.',
 				403,
@@ -171,8 +197,10 @@ class ServiceService {
 
 	async removeMember(serviceId: string, targetUserId: string, currentUser: any) {
 		const userId = currentUser.id;
-		const access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		if (!access || access.role !== 'owner')
+		let access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
+		if (!access && currentUser.isAdmin) access = { service: {} as any, role: 'owner' };
+
+		if (!access || (access.role !== 'owner' && !currentUser.isAdmin))
 			throw new ServiceDomainError('Acesso negado.', 403, 'FORBIDDEN');
 		if (targetUserId === userId)
 			throw new ServiceDomainError(
@@ -191,8 +219,10 @@ class ServiceService {
 
 	async transferOwnership(serviceId: string, newOwnerId: string, currentUser: any) {
 		const userId = currentUser.id;
-		const access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		if (!access || access.role !== 'owner')
+		let access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
+		if (!access && currentUser.isAdmin) access = { service: {} as any, role: 'owner' };
+
+		if (!access || (access.role !== 'owner' && !currentUser.isAdmin))
 			throw new ServiceDomainError('Acesso negado.', 403, 'FORBIDDEN');
 
 		const [targetMember] = await db

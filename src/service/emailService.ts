@@ -203,10 +203,22 @@ class EmailService {
 		};
 	}
 
+	async listAllEmailsGlobally(currentUser: any) {
+		if (!currentUser.isAdmin) {
+			throw new EmailDomainError(
+				'Acesso negado. Apenas administradores podem acessar todos os e-mails.',
+				403,
+				'FORBIDDEN',
+			);
+		}
+		return emailRepository.findAllGloballyForAdmin();
+	}
+
 	async listEmails(serviceId: string, currentUser: any, status?: string) {
 		const userId = currentUser.id;
 		const serviceExists = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		if (!serviceExists) throw new EmailDomainError('Serviço não encontrado.', 404, 'NOT_FOUND');
+		if (!serviceExists && !currentUser.isAdmin)
+			throw new EmailDomainError('Serviço não encontrado.', 404, 'NOT_FOUND');
 		return emailRepository.findAllByService(serviceId, status);
 	}
 
@@ -215,6 +227,11 @@ class EmailService {
 		const found = await emailRepository.findById(emailId);
 		if (!found || found.service_id !== serviceId)
 			throw new EmailDomainError('E-mail não encontrado.', 404, 'NOT_FOUND');
+
+		const access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
+		if (!access && !currentUser.isAdmin)
+			throw new EmailDomainError('Acesso negado.', 403, 'FORBIDDEN');
+
 		return found;
 	}
 

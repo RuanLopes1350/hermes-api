@@ -1,10 +1,11 @@
 import { db } from '../config/dbConfig.js';
 import { and, eq, isNull } from 'drizzle-orm';
-import { service, service_member } from '../config/db/schema.js';
+import { service, service_member, user } from '../config/db/schema.js';
 import { v4 as uuidv4 } from 'uuid';
 import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import { parseDatabaseError } from '../utils/helpers/dbErrors.js';
+import { alias } from 'drizzle-orm/pg-core';
 
 class ServiceRepository {
 	async createService(data: { name: string; creatorId: string; settings?: any }) {
@@ -38,6 +39,28 @@ class ServiceRepository {
 		}
 	}
 
+	async findAllForAdmin() {
+		console.log(
+			chalk.magenta(
+				`[${getTimestamp()}] [DB] [ServiceRepository] Listando todos os serviços (Admin)`,
+			),
+		);
+		try {
+			const rows = await db
+				.select({
+					service: service,
+					ownerName: user.name,
+				})
+				.from(service)
+				.leftJoin(user, eq(service.creator_id, user.id))
+				.where(isNull(service.deletedAt));
+
+			return rows.map((r) => ({ ...r.service, _role: 'owner', ownerName: r.ownerName }));
+		} catch (error) {
+			throw parseDatabaseError(error, 'ServiceRepository.findAllForAdmin');
+		}
+	}
+
 	async findAllByUser(userId: string) {
 		console.log(
 			chalk.magenta(
@@ -49,13 +72,14 @@ class ServiceRepository {
 				.select({
 					service: service,
 					role: service_member.role,
+					ownerName: user.name,
 				})
 				.from(service)
 				.innerJoin(service_member, eq(service.id, service_member.service_id))
+				.leftJoin(user, eq(service.creator_id, user.id))
 				.where(and(eq(service_member.user_id, userId), isNull(service.deletedAt)));
 
-			// Map to return the service object but with an injected _role for frontend
-			return rows.map((r) => ({ ...r.service, _role: r.role }));
+			return rows.map((r) => ({ ...r.service, _role: r.role, ownerName: r.ownerName }));
 		} catch (error) {
 			throw parseDatabaseError(error, 'ServiceRepository.findAllByUser');
 		}

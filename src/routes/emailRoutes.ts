@@ -23,6 +23,7 @@ router.post(
 );
 
 // GET — autenticação por sessão (para o dashboard visualizar os e-mails)
+router.get('/emails/all', requireAuth, emailController.listAll.bind(emailController));
 router.get('/services/:serviceId/emails', requireAuth, emailController.list.bind(emailController));
 router.get(
 	'/services/:serviceId/emails/:id',

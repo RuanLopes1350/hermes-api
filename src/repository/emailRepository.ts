@@ -1,5 +1,5 @@
 import { db } from '../config/dbConfig.js';
-import { email } from '../config/db/schema.js';
+import { email, service } from '../config/db/schema.js';
 import { and, eq, isNull, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import chalk from 'chalk';
@@ -106,6 +106,28 @@ class EmailRepository {
 				.orderBy(desc(email.createdAt));
 		} catch (error) {
 			throw parseDatabaseError(error, 'EmailRepository.findAllByService');
+		}
+	}
+
+	// Lista todos os emails globalmente, com nome do serviço, para Admin.
+	async findAllGloballyForAdmin() {
+		console.log(
+			chalk.magenta(`[${getTimestamp()}] [DB] [EmailRepository] Listando todos os e-mails (Admin)`),
+		);
+		try {
+			const rows = await db
+				.select({
+					email: email,
+					serviceName: service.name,
+				})
+				.from(email)
+				.leftJoin(service, eq(email.service_id, service.id))
+				.where(isNull(email.deletedAt))
+				.orderBy(desc(email.createdAt));
+
+			return rows.map((r) => ({ ...r.email, serviceName: r.serviceName }));
+		} catch (error) {
+			throw parseDatabaseError(error, 'EmailRepository.findAllGloballyForAdmin');
 		}
 	}
 

@@ -85,11 +85,32 @@ export async function seedEmails(services: any[], templates: any[]) {
 			service_template_id: globalWelcome.id,
 			subject: 'Bem-vindo ao E-commerce',
 			recipient_to: 'novo_cliente@exemplo.com',
-			variables: { name: 'João', companyName: 'E-commerce API' },
+			variables: {
+				nome_usuario: 'João',
+				nome_sistema: 'E-commerce API',
+				link_acesso: 'https://exemplo.com/login',
+			},
 			status: 'sent' as const,
 			priority: 'medium' as const,
 			sent_at: new Date(now - msInDay * 10), // 10 dias atrás
 			createdAt: new Date(now - msInDay * 10 - 5000),
+		},
+		{
+			id: uuidv4(),
+			service_id: ecommerceAPI.id,
+			service_template_id: templates[2].id, // Password Recovery
+			subject: 'Recuperação de Senha',
+			recipient_to: 'usuario_esqueceu_senha@exemplo.com',
+			variables: {
+				nome_usuario: 'Maria',
+				nome_sistema: 'E-commerce API',
+				tempo_expiracao: '1 hora',
+				link_recuperacao: 'https://exemplo.com/reset-password?token=abc123xyz',
+			},
+			status: 'sent' as const,
+			priority: 'high' as const,
+			sent_at: new Date(now - msInDay * 1), // 1 dia atrás
+			createdAt: new Date(now - msInDay * 1 - 2000),
 		},
 	];
 

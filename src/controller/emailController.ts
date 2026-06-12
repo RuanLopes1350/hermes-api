@@ -49,6 +49,22 @@ class EmailController {
 		}
 	}
 
+	// GET /api/emails/all
+	async listAll(req: Request, res: Response, next: NextFunction) {
+		console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/emails/all`));
+		try {
+			const emails = await emailService.listAllEmailsGlobally(req.user);
+			return CommonResponse.success(
+				res,
+				emails,
+				200,
+				`${emails.length} e-mail(s) globais encontrado(s).`,
+			);
+		} catch (error) {
+			next(error);
+		}
+	}
+
 	// GET /api/services/:serviceId/emails?status=pending
 	async list(req: Request, res: Response, next: NextFunction) {
 		console.log(
