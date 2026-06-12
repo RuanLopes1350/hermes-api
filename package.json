@@ -9,7 +9,7 @@
   "scripts": {
     "dev:api": "tsx watch src/server.ts",
     "dev:worker": "tsx watch src/worker.ts",
-    "build": "npm run format:fix && tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json",
     "start:api": "node dist/server.js",
     "start:worker": "node dist/worker.js",
     "send": "",
