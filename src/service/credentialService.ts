@@ -3,7 +3,10 @@ import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import credentialRepository from '../repository/credentialRepository.js';
 import serviceRepository from '../repository/serviceRepository.js';
-import { createCredentialSchema, updateCredentialSchema } from '../utils/validation/credentialValidation.js';
+import {
+	createCredentialSchema,
+	updateCredentialSchema,
+} from '../utils/validation/credentialValidation.js';
 import { DomainError } from '../utils/helpers/domainError.js';
 import { getAuthUrl, getTokensFromCode } from '../utils/googleAuth.js';
 
@@ -52,10 +55,17 @@ export function decryptPasskey(ciphertext: string): string {
 
 class CredentialService {
 	async createCredential(serviceId: string, data: any, userId: string) {
-		console.log(chalk.blue.bold(`[${getTimestamp()}] [INFO] [CredentialService] Criando credencial...`));
+		console.log(
+			chalk.blue.bold(`[${getTimestamp()}] [INFO] [CredentialService] Criando credencial...`),
+		);
 
 		const access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		if (!access) throw new CredentialDomainError('Serviço não encontrado ou você não tem acesso.', 404, 'SERVICE_NOT_FOUND');
+		if (!access)
+			throw new CredentialDomainError(
+				'Serviço não encontrado ou você não tem acesso.',
+				404,
+				'SERVICE_NOT_FOUND',
+			);
 
 		const parsedData = createCredentialSchema.parse(data);
 
@@ -63,7 +73,7 @@ class CredentialService {
 		const rawKey = crypto.randomBytes(32).toString('hex');
 		const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
 		const prefix = `HRMS-${rawKey.slice(0, 7)}`;
-		
+
 		let newCredential;
 
 		if (parsedData.authType === 'oauth2') {
@@ -71,7 +81,11 @@ class CredentialService {
 			const finalClientSecret = parsedData.clientSecret || process.env.GOOGLE_CLIENT_SECRET;
 
 			if (!finalClientId || !finalClientSecret) {
-				throw new CredentialDomainError('Configuração Google OAuth2 ausente no servidor.', 500, 'GLOBAL_OAUTH_MISSING');
+				throw new CredentialDomainError(
+					'Configuração Google OAuth2 ausente no servidor.',
+					500,
+					'GLOBAL_OAUTH_MISSING',
+				);
 			}
 
 			newCredential = await credentialRepository.create({
@@ -87,7 +101,7 @@ class CredentialService {
 				creatorId: userId,
 				keyHash,
 				prefix,
-				expiresAt: null
+				expiresAt: null,
 			});
 		} else {
 			newCredential = await credentialRepository.create({
@@ -102,7 +116,7 @@ class CredentialService {
 				creatorId: userId,
 				keyHash,
 				prefix,
-				expiresAt: null
+				expiresAt: null,
 			});
 		}
 
@@ -121,10 +135,31 @@ class CredentialService {
 		return getAuthUrl(cred.client_id, decryptPasskey(cred.client_secret), state);
 	}
 
+	async handleGoogleCallback(query: any) {
+		const { code, state } = query;
+		if (!code || !state)
+			throw new CredentialDomainError(
+				'Parâmetros inválidos no callback do Google.',
+				400,
+				'INVALID_OAUTH_CALLBACK',
+			);
+
+		const [serviceId, credentialId] = String(state).split(':');
+
+		await this.finishGoogleAuth(credentialId, String(code));
+
+		const frontendUrl = (process.env.AUTH_TRUSTED_ORIGINS || 'http://localhost:3000').split(',')[0];
+		return `${frontendUrl}/system/services/${serviceId}?auth=success`;
+	}
+
 	async finishGoogleAuth(credentialId: string, code: string) {
 		const cred = await credentialRepository.findById(credentialId);
 		if (!cred || !cred.client_id || !cred.client_secret) throw new Error('Credencial inválida.');
-		const tokens = await getTokensFromCode(cred.client_id, decryptPasskey(cred.client_secret), code);
+		const tokens = await getTokensFromCode(
+			cred.client_id,
+			decryptPasskey(cred.client_secret),
+			code,
+		);
 		if (!tokens.refresh_token) throw new Error('Refresh Token não recebido.');
 
 		await credentialRepository.updateById(credentialId, {
@@ -132,7 +167,11 @@ class CredentialService {
 			updatedAt: new Date(),
 		});
 
-		console.log(chalk.green.bold(`[${getTimestamp()}] [SUCCESS] OAuth2 vinculado com sucesso para a credencial: ${credentialId}`));
+		console.log(
+			chalk.green.bold(
+				`[${getTimestamp()}] [SUCCESS] OAuth2 vinculado com sucesso para a credencial: ${credentialId}`,
+			),
+		);
 		return { message: 'Autenticação concluída!' };
 	}
 
@@ -151,8 +190,9 @@ class CredentialService {
 		if (!access) throw new CredentialDomainError('Acesso negado ao serviço.', 403, 'FORBIDDEN');
 
 		const found = await credentialRepository.findById(credentialId);
-		if (!found || found.service_id !== serviceId) throw new CredentialDomainError('Credencial não encontrada.', 404, 'NOT_FOUND');
-		
+		if (!found || found.service_id !== serviceId)
+			throw new CredentialDomainError('Credencial não encontrada.', 404, 'NOT_FOUND');
+
 		return found;
 	}
 
@@ -165,26 +205,34 @@ class CredentialService {
 	async updateCredential(serviceId: string, credentialId: string, data: any, userId: string) {
 		const cred = await this.getCredential(serviceId, credentialId, userId);
 		const access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		
+
 		if (access!.role === 'member' && cred.creator_id !== userId) {
-			throw new CredentialDomainError('Você só pode editar credenciais que você mesmo criou.', 403, 'FORBIDDEN');
+			throw new CredentialDomainError(
+				'Você só pode editar credenciais que você mesmo criou.',
+				403,
+				'FORBIDDEN',
+			);
 		}
 
-		// Use any to bypass TS, but realistically we should adapt the validation schema 
+		// Use any to bypass TS, but realistically we should adapt the validation schema
 		// updateCredentialSchema needs to allow is_active. Since I might not have changed it yet, I will pass it manually.
 		const updateData: any = { ...data };
 		if (data.passkey) updateData.passkey = encryptPasskey(data.passkey);
 		if (data.clientSecret) updateData.client_secret = encryptPasskey(data.clientSecret);
-		
+
 		return await credentialRepository.updateById(credentialId, updateData);
 	}
 
 	async deleteCredential(serviceId: string, credentialId: string, userId: string) {
 		const cred = await this.getCredential(serviceId, credentialId, userId);
 		const access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		
+
 		if (access!.role === 'member' && cred.creator_id !== userId) {
-			throw new CredentialDomainError('Você só pode excluir credenciais que você mesmo criou.', 403, 'FORBIDDEN');
+			throw new CredentialDomainError(
+				'Você só pode excluir credenciais que você mesmo criou.',
+				403,
+				'FORBIDDEN',
+			);
 		}
 
 		return await credentialRepository.deleteById(credentialId);

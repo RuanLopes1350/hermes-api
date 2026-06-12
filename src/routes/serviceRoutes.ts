@@ -16,9 +16,25 @@ router.delete(
 );
 
 // Member Routes
-router.get('/services/:id/members', requireAuth, serviceController.listMembers.bind(serviceController));
-router.post('/services/:id/members', requireAuth, serviceController.addMember.bind(serviceController));
-router.delete('/services/:id/members/:userId', requireAuth, serviceController.removeMember.bind(serviceController));
-router.post('/services/:id/transfer-ownership', requireAuth, serviceController.transferOwnership.bind(serviceController));
+router.get(
+	'/services/:id/members',
+	requireAuth,
+	serviceController.listMembers.bind(serviceController),
+);
+router.post(
+	'/services/:id/members',
+	requireAuth,
+	serviceController.addMember.bind(serviceController),
+);
+router.delete(
+	'/services/:id/members/:userId',
+	requireAuth,
+	serviceController.removeMember.bind(serviceController),
+);
+router.post(
+	'/services/:id/transfer-ownership',
+	requireAuth,
+	serviceController.transferOwnership.bind(serviceController),
+);
 
 export default router;

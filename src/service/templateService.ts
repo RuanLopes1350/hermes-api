@@ -8,6 +8,8 @@ import {
 } from '../utils/validation/templateValidation.js';
 import HttpStatusCode from '../utils/helpers/httpStatusCode.js';
 import { DomainError } from '../utils/helpers/domainError.js';
+import { renderTemplate } from '../utils/renderTemplate.js';
+import { sanitizeHtml } from '../utils/helpers/sanitizer.js';
 
 // Erro de domínio para templates
 export class TemplateDomainError extends DomainError {
@@ -18,8 +20,32 @@ export class TemplateDomainError extends DomainError {
 }
 
 class TemplateService {
-	// Cria um novo template HTML/Handlebars.
-	async createTemplate(serviceId: string | null, data: unknown, userId: string) {
+	// Pre-visualiza um template
+	async previewTemplate(data: any) {
+		const { mjml, variables } = data;
+		if (!mjml) {
+			throw new TemplateDomainError(
+				'O conteúdo MJML é obrigatório.',
+				HttpStatusCode.BAD_REQUEST.code,
+				'MJML_REQUIRED',
+			);
+		}
+		const result = await renderTemplate(mjml, variables || {});
+
+		// Sanitização contra XSS
+		const safeHtml = sanitizeHtml(result.html);
+
+		return {
+			html: safeHtml,
+			errors: result.errors,
+			renderedAt: new Date(),
+		};
+	}
+
+	async createTemplate(params: any, data: any, currentUser: any) {
+		const serviceId = params.serviceId || data.service_id || null;
+		const userId = currentUser.id;
+
 		console.log(
 			chalk.blue.bold(
 				`[${getTimestamp()}] [INFO] [TemplateService] Criando template. ServiceId: ${serviceId}`,
@@ -65,8 +91,8 @@ class TemplateService {
 		return newTemplate;
 	}
 
-	// Lista todos os templates ativos de um serviço.
-	async listTemplates(serviceId: string, userId: string) {
+	async listTemplates(serviceId: string, currentUser: any) {
+		const userId = currentUser.id;
 		const serviceExists = await serviceRepository.findServiceAndUserRole(serviceId, userId);
 		if (!serviceExists) {
 			throw new TemplateDomainError(
@@ -78,14 +104,12 @@ class TemplateService {
 		return templateRepository.findAllByService(serviceId);
 	}
 
-	// Lista todos os templates de um usuário (em todos os serviços + globais).
-	async listAllTemplatesByUser(userId: string) {
-		return templateRepository.findAllByUser(userId);
+	async listAllTemplatesByUser(currentUser: any) {
+		return templateRepository.findAllByUser(currentUser.id);
 	}
 
-	// Busca um template por ID (Global).
-	async getTemplateById(templateId: string, userId: string) {
-		const found = await templateRepository.findByIdAndUser(templateId, userId);
+	async getTemplateById(templateId: string, currentUser: any) {
+		const found = await templateRepository.findByIdAndUser(templateId, currentUser.id);
 		if (!found) {
 			throw new TemplateDomainError(
 				'Template não encontrado.',
@@ -96,8 +120,8 @@ class TemplateService {
 		return found;
 	}
 
-	// Busca um template por ID, verificando que pertence ao serviço do usuário.
-	async getTemplate(serviceId: string, templateId: string, userId: string) {
+	async getTemplate(serviceId: string, templateId: string, currentUser: any) {
+		const userId = currentUser.id;
 		const serviceExists = await serviceRepository.findServiceAndUserRole(serviceId, userId);
 		if (!serviceExists) {
 			throw new TemplateDomainError(
@@ -146,12 +170,11 @@ class TemplateService {
 	}
 
 	// Atualiza campos de um template.
-	async updateTemplate(
-		serviceId: string | null,
-		templateId: string,
-		data: unknown,
-		userId: string,
-	) {
+	async updateTemplate(params: any, data: any, currentUser: any) {
+		const serviceId = params.serviceId || data.service_id || null;
+		const templateId = params.id;
+		const userId = currentUser.id;
+
 		// Verifica propriedade
 		await this.ensureOwnership(templateId, userId);
 
@@ -177,8 +200,8 @@ class TemplateService {
 		return updated;
 	}
 
-	// Soft delete de um template.
-	async deleteTemplate(templateId: string, userId: string) {
+	async deleteTemplate(templateId: string, currentUser: any) {
+		const userId = currentUser.id;
 		await this.ensureOwnership(templateId, userId);
 		const deleted = await templateRepository.softDeleteById(templateId);
 		return { id: deleted!.id };

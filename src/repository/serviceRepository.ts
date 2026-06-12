@@ -8,7 +8,9 @@ import { parseDatabaseError } from '../utils/helpers/dbErrors.js';
 
 class ServiceRepository {
 	async createService(data: { name: string; creatorId: string; settings?: any }) {
-		console.log(chalk.magenta(`[${getTimestamp()}] [DB] [ServiceRepository] Inserindo novo serviço...`));
+		console.log(
+			chalk.magenta(`[${getTimestamp()}] [DB] [ServiceRepository] Inserindo novo serviço...`),
+		);
 		try {
 			return await db.transaction(async (tx) => {
 				const serviceId = uuidv4();
@@ -37,7 +39,11 @@ class ServiceRepository {
 	}
 
 	async findAllByUser(userId: string) {
-		console.log(chalk.magenta(`[${getTimestamp()}] [DB] [ServiceRepository] Listando serviços do usuário: ${userId}`));
+		console.log(
+			chalk.magenta(
+				`[${getTimestamp()}] [DB] [ServiceRepository] Listando serviços do usuário: ${userId}`,
+			),
+		);
 		try {
 			const rows = await db
 				.select({
@@ -47,7 +53,7 @@ class ServiceRepository {
 				.from(service)
 				.innerJoin(service_member, eq(service.id, service_member.service_id))
 				.where(and(eq(service_member.user_id, userId), isNull(service.deletedAt)));
-			
+
 			// Map to return the service object but with an injected _role for frontend
 			return rows.map((r) => ({ ...r.service, _role: r.role }));
 		} catch (error) {
@@ -55,8 +61,15 @@ class ServiceRepository {
 		}
 	}
 
-	async findServiceAndUserRole(serviceId: string, userId: string): Promise<{ service: typeof service.$inferSelect, role: 'owner' | 'member' } | null> {
-		console.log(chalk.magenta(`[${getTimestamp()}] [DB] [ServiceRepository] Buscando serviço e role: ${serviceId}`));
+	async findServiceAndUserRole(
+		serviceId: string,
+		userId: string,
+	): Promise<{ service: typeof service.$inferSelect; role: 'owner' | 'member' } | null> {
+		console.log(
+			chalk.magenta(
+				`[${getTimestamp()}] [DB] [ServiceRepository] Buscando serviço e role: ${serviceId}`,
+			),
+		);
 		try {
 			const [result] = await db
 				.select({
@@ -65,7 +78,13 @@ class ServiceRepository {
 				})
 				.from(service)
 				.innerJoin(service_member, eq(service.id, service_member.service_id))
-				.where(and(eq(service.id, serviceId), eq(service_member.user_id, userId), isNull(service.deletedAt)))
+				.where(
+					and(
+						eq(service.id, serviceId),
+						eq(service_member.user_id, userId),
+						isNull(service.deletedAt),
+					),
+				)
 				.limit(1);
 			return result ?? null;
 		} catch (error) {
@@ -74,7 +93,11 @@ class ServiceRepository {
 	}
 
 	async findById(serviceId: string) {
-		console.log(chalk.magenta(`[${getTimestamp()}] [DB] [ServiceRepository] Buscando serviço (worker): ${serviceId}`));
+		console.log(
+			chalk.magenta(
+				`[${getTimestamp()}] [DB] [ServiceRepository] Buscando serviço (worker): ${serviceId}`,
+			),
+		);
 		try {
 			const [found] = await db
 				.select()
@@ -88,7 +111,11 @@ class ServiceRepository {
 	}
 
 	async updateById(serviceId: string, data: { name?: string; settings?: any }) {
-		console.log(chalk.magenta(`[${getTimestamp()}] [DB] [ServiceRepository] Atualizando serviço: ${serviceId}`));
+		console.log(
+			chalk.magenta(
+				`[${getTimestamp()}] [DB] [ServiceRepository] Atualizando serviço: ${serviceId}`,
+			),
+		);
 		try {
 			const [updated] = await db
 				.update(service)
@@ -102,7 +129,11 @@ class ServiceRepository {
 	}
 
 	async softDeleteById(serviceId: string) {
-		console.log(chalk.magenta(`[${getTimestamp()}] [DB] [ServiceRepository] Soft delete do serviço: ${serviceId}`));
+		console.log(
+			chalk.magenta(
+				`[${getTimestamp()}] [DB] [ServiceRepository] Soft delete do serviço: ${serviceId}`,
+			),
+		);
 		try {
 			const [deleted] = await db
 				.update(service)

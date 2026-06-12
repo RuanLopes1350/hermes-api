@@ -81,10 +81,13 @@ class UserService {
 	// Busca um usuário pelo ID.
 	// Um usuário comum só pode acessar seus próprios dados; admins podem acessar qualquer um.
 	//
-	async getUser(targetId: string, requesterId: string, requesterIsAdmin: boolean) {
+	async getUser(targetId: string, currentUser: any) {
 		console.log(
 			chalk.blue.bold(`[${getTimestamp()}] [INFO] [UserService] Buscando usuário: ${targetId}`),
 		);
+
+		const requesterId = currentUser.id;
+		const requesterIsAdmin = currentUser.isAdmin ?? false;
 
 		// Não-admins só podem ver os próprios dados
 		if (!requesterIsAdmin && targetId !== requesterId) {
@@ -109,15 +112,13 @@ class UserService {
 	// Atualiza nome e/ou imagem do usuário.
 	// Email e senha são gerenciados pelo Better Auth.
 	//
-	async updateUser(
-		targetId: string,
-		data: unknown,
-		requesterId: string,
-		requesterIsAdmin: boolean,
-	) {
+	async updateUser(targetId: string, data: unknown, currentUser: any) {
 		console.log(
 			chalk.blue.bold(`[${getTimestamp()}] [INFO] [UserService] Atualizando usuário: ${targetId}`),
 		);
+
+		const requesterId = currentUser.id;
+		const requesterIsAdmin = currentUser.isAdmin ?? false;
 
 		if (!requesterIsAdmin && targetId !== requesterId) {
 			throw new UserServiceError(
@@ -152,12 +153,14 @@ class UserService {
 
 	// Atualiza permissões ou status (isAdmin, isActive). Exclusivo para administradores.
 	//
-	async adminUpdateUser(targetId: string, data: unknown, requesterIsAdmin: boolean) {
+	async adminUpdateUser(targetId: string, data: unknown, currentUser: any) {
 		console.log(
 			chalk.blue.bold(
 				`[${getTimestamp()}] [INFO] [UserService] Admin atualizando usuário: ${targetId}`,
 			),
 		);
+
+		const requesterIsAdmin = currentUser.isAdmin ?? false;
 
 		if (!requesterIsAdmin) {
 			throw new UserServiceError(

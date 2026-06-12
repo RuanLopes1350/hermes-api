@@ -3,25 +3,13 @@ import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import templateService from '../service/templateService.js';
 import CommonResponse from '../utils/helpers/commonResponse.js';
-import { renderTemplate } from '../utils/renderTemplate.js';
-import { sanitizeHtml } from '../utils/helpers/sanitizer.js';
 
 class TemplateController {
 	// POST /api/services/:serviceId/templates/preview
 	async preview(req: Request, res: Response, next: NextFunction) {
 		try {
-			const { mjml, variables } = req.body;
-			if (!mjml) return res.status(400).json({ error: 'O conteúdo MJML é obrigatório.' });
-			const result = await renderTemplate(mjml, variables || {});
-
-			// Sanitização contra XSS
-			const safeHtml = sanitizeHtml(result.html);
-
-			return res.json({
-				html: safeHtml,
-				errors: result.errors,
-				renderedAt: new Date(),
-			});
+			const result = await templateService.previewTemplate(req.body);
+			return res.json(result);
 		} catch (error) {
 			next(error);
 		}
@@ -30,9 +18,7 @@ class TemplateController {
 	// POST /api/services/:serviceId/templates OR POST /api/templates
 	async create(req: Request, res: Response, next: NextFunction) {
 		try {
-			const serviceId = req.params.serviceId || req.body.service_id || null;
-			const userId = req.user!.id;
-			const newTemplate = await templateService.createTemplate(serviceId, req.body, userId);
+			const newTemplate = await templateService.createTemplate(req.params, req.body, req.user);
 			return CommonResponse.created(res, newTemplate, 'Template criado com sucesso!');
 		} catch (error) {
 			next(error);
@@ -42,8 +28,7 @@ class TemplateController {
 	// GET /api/templates (Global)
 	async listAll(req: Request, res: Response, next: NextFunction) {
 		try {
-			const userId = req.user!.id;
-			const templates = await templateService.listAllTemplatesByUser(userId);
+			const templates = await templateService.listAllTemplatesByUser(req.user);
 			return CommonResponse.success(
 				res,
 				templates,
@@ -58,9 +43,7 @@ class TemplateController {
 	// GET /api/templates/:id (Global)
 	async getOneGlobal(req: Request, res: Response, next: NextFunction) {
 		try {
-			const id = String(req.params.id);
-			const userId = req.user!.id;
-			const found = await templateService.getTemplateById(id, userId);
+			const found = await templateService.getTemplateById(String(req.params.id), req.user);
 			return CommonResponse.success(res, found, 200, 'Template encontrado.');
 		} catch (error) {
 			next(error);
@@ -70,10 +53,7 @@ class TemplateController {
 	// PATCH /api/templates/:id
 	async update(req: Request, res: Response, next: NextFunction) {
 		try {
-			const serviceId = req.params.serviceId || req.body.service_id || null;
-			const id = String(req.params.id);
-			const userId = req.user!.id;
-			const updated = await templateService.updateTemplate(serviceId, id, req.body, userId);
+			const updated = await templateService.updateTemplate(req.params, req.body, req.user);
 			return CommonResponse.success(res, updated, 200, 'Template atualizado com sucesso.');
 		} catch (error) {
 			next(error);
@@ -83,9 +63,7 @@ class TemplateController {
 	// DELETE /api/templates/:id
 	async remove(req: Request, res: Response, next: NextFunction) {
 		try {
-			const id = String(req.params.id);
-			const userId = req.user!.id;
-			const result = await templateService.deleteTemplate(id, userId);
+			const result = await templateService.deleteTemplate(String(req.params.id), req.user);
 			return CommonResponse.success(res, result, 200, 'Template removido com sucesso.');
 		} catch (error) {
 			next(error);
@@ -95,10 +73,13 @@ class TemplateController {
 	// GET /api/services/:serviceId/templates
 	async list(req: Request, res: Response, next: NextFunction) {
 		try {
-			const serviceId = String(req.params.serviceId);
-			const userId = req.user!.id;
-			const templates = await templateService.listTemplates(serviceId, userId);
-			return CommonResponse.success(res, templates, 200, `${templates.length} template(s).`);
+			const templates = await templateService.listTemplates(String(req.params.serviceId), req.user);
+			return CommonResponse.success(
+				res,
+				templates,
+				200,
+				`${templates.length} template(s) encontrado(s).`,
+			);
 		} catch (error) {
 			next(error);
 		}

@@ -135,4 +135,3 @@ export type EmailType = {
 	sent_at?: Date | null;
 	createdAt?: Date;
 };
-

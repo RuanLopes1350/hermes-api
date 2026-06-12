@@ -17,6 +17,7 @@
     "format:fix": "prettier --write \"src/**/*.{ts,js,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,js,json}\"",
     "docs:generate": "tsx src/docs/swagger.ts",
+    "seed": "tsx src/seeds/index.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit migrate",

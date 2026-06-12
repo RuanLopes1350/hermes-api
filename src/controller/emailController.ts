@@ -55,10 +55,8 @@ class EmailController {
 			chalk.cyan(`[${getTimestamp()}] [GET] /api/services/${req.params.serviceId}/emails`),
 		);
 		try {
-			const serviceId = String(req.params.serviceId);
-			const userId = req.user!.id;
 			const status = typeof req.query.status === 'string' ? req.query.status : undefined;
-			const emails = await emailService.listEmails(serviceId, userId, status);
+			const emails = await emailService.listEmails(String(req.params.serviceId), req.user, status);
 			return CommonResponse.success(res, emails, 200, `${emails.length} e-mail(s) encontrado(s).`);
 		} catch (error) {
 			next(error);
@@ -73,10 +71,11 @@ class EmailController {
 			),
 		);
 		try {
-			const serviceId = String(req.params.serviceId);
-			const id = String(req.params.id);
-			const userId = req.user!.id;
-			const found = await emailService.getEmail(serviceId, id, userId);
+			const found = await emailService.getEmail(
+				String(req.params.serviceId),
+				String(req.params.id),
+				req.user,
+			);
 			return CommonResponse.success(res, found, 200, 'E-mail encontrado.');
 		} catch (error) {
 			next(error);
@@ -91,10 +90,11 @@ class EmailController {
 			),
 		);
 		try {
-			const serviceId = String(req.params.serviceId);
-			const id = String(req.params.id);
-			const userId = req.user!.id;
-			const result = await emailService.cancelEmail(serviceId, id, userId);
+			const result = await emailService.cancelEmail(
+				String(req.params.serviceId),
+				String(req.params.id),
+				req.user,
+			);
 			return CommonResponse.success(res, result, 200, 'E-mail cancelado com sucesso.');
 		} catch (error) {
 			next(error);

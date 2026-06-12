@@ -49,8 +49,8 @@ export async function requireApiKey(req: Request, res: Response, next: NextFunct
 				and(
 					eq(credential.key_hash, hash),
 					eq(credential.is_active, true),
-					isNull(credential.deletedAt)
-				)
+					isNull(credential.deletedAt),
+				),
 			)
 			.limit(1);
 

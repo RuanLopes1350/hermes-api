@@ -43,10 +43,7 @@ class UserController {
 		const id = String(req.params.id);
 		console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/users/${id}`));
 		try {
-			const requesterId = req.user!.id;
-			const requesterIsAdmin = req.user!.isAdmin ?? false;
-
-			const found = await userService.getUser(id, requesterId, requesterIsAdmin);
+			const found = await userService.getUser(id, req.user);
 			return CommonResponse.success(res, found, 200, 'Usuário encontrado.');
 		} catch (error) {
 			next(error);
@@ -60,10 +57,7 @@ class UserController {
 		const id = String(req.params.id);
 		console.log(chalk.cyan(`[${getTimestamp()}] [PATCH] /api/users/${id}`));
 		try {
-			const requesterId = req.user!.id;
-			const requesterIsAdmin = req.user!.isAdmin ?? false;
-
-			const updated = await userService.updateUser(id, req.body, requesterId, requesterIsAdmin);
+			const updated = await userService.updateUser(id, req.body, req.user);
 			return CommonResponse.success(res, updated, 200, 'Usuário atualizado com sucesso.');
 		} catch (error) {
 			next(error);
@@ -90,9 +84,7 @@ class UserController {
 		const id = String(req.params.id);
 		console.log(chalk.cyan(`[${getTimestamp()}] [PATCH] /api/users/${id}/admin`));
 		try {
-			const requesterIsAdmin = req.user!.isAdmin ?? false;
-
-			const updated = await userService.adminUpdateUser(id, req.body, requesterIsAdmin);
+			const updated = await userService.adminUpdateUser(id, req.body, req.user);
 			return CommonResponse.success(
 				res,
 				updated,

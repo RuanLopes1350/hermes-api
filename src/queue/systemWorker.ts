@@ -20,8 +20,12 @@ export const systemQueue = new Queue('system-queue', {
 export const systemWorker = new Worker(
 	'system-queue',
 	async (job) => {
-			// Outros jobs de sistema podem ser adicionados aqui no futuro.
-			console.log(chalk.gray(`[${getTimestamp()}] [SYSTEM_WORKER] Job ${job.name} concluído (sem ações necessárias no momento).`));
+		// Outros jobs de sistema podem ser adicionados aqui no futuro.
+		console.log(
+			chalk.gray(
+				`[${getTimestamp()}] [SYSTEM_WORKER] Job ${job.name} concluído (sem ações necessárias no momento).`,
+			),
+		);
 	},
 	{ connection: redisConfig },
 );

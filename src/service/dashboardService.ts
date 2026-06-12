@@ -4,12 +4,32 @@ import { eq, count, and, isNull, sql, desc } from 'drizzle-orm';
 import { emailQueue } from '../queue/emailQueue.js';
 import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
+import { Request, Response } from 'express';
+import HttpStatusCode from '../utils/helpers/httpStatusCode.js';
+import { DomainError } from '../utils/helpers/domainError.js';
+import { globalQueueEvents } from '../queue/queueEvents.js';
+
+export class DashboardDomainError extends DomainError {
+	constructor(message: string, statusCode: number, errorCode: string) {
+		super(message, statusCode, errorCode);
+		this.name = 'DashboardDomainError';
+	}
+}
 
 class DashboardService {
 	/**
 	 * Estatísticas Globais para o Administrador
 	 */
-	async getAdminStats() {
+	async getAdminStats(currentUser: any) {
+		const isAdmin = currentUser?.isAdmin ?? false;
+		if (!isAdmin) {
+			throw new DashboardDomainError(
+				'Acesso negado. Esta rota é restrita a administradores.',
+				HttpStatusCode.FORBIDDEN.code,
+				'FORBIDDEN',
+			);
+		}
+
 		console.log(
 			chalk.blue.bold(`[${getTimestamp()}] [INFO] [DashboardService] Gerando stats de ADMIN`),
 		);
@@ -50,7 +70,10 @@ class DashboardService {
 				createdAt: service.createdAt,
 			})
 			.from(service)
-			.innerJoin(service_member, and(eq(service.id, service_member.service_id), eq(service_member.role, 'owner')))
+			.innerJoin(
+				service_member,
+				and(eq(service.id, service_member.service_id), eq(service_member.role, 'owner')),
+			)
 			.innerJoin(user, eq(service_member.user_id, user.id))
 			.where(isNull(service.deletedAt))
 			.orderBy(desc(service.createdAt))
@@ -76,7 +99,9 @@ class DashboardService {
 	/**
 	 * Estatísticas Pessoais para o Usuário
 	 */
-	async getUserStats(userId: string) {
+	async getUserStats(currentUser: any) {
+		const userId = currentUser.id;
+
 		console.log(
 			chalk.blue.bold(
 				`[${getTimestamp()}] [INFO] [DashboardService] Gerando stats de USER: ${userId}`,
@@ -94,7 +119,9 @@ class DashboardService {
 				.select({ value: count() })
 				.from(email)
 				.innerJoin(service_member, eq(email.service_id, service_member.service_id))
-				.where(and(eq(service_member.user_id, userId), sql`${email.status} IN ('pending', 'retrying')`)),
+				.where(
+					and(eq(service_member.user_id, userId), sql`${email.status} IN ('pending', 'retrying')`),
+				),
 			db
 				.select({ value: count() })
 				.from(service_member)
@@ -160,6 +187,66 @@ class DashboardService {
 			topTemplates: topTemplates.rows,
 			recentEmails,
 		};
+	}
+
+	/**
+	 * Endpoint de SSE para eventos da fila de emails
+	 */
+	streamQueueEvents(req: Request, res: Response) {
+		res.setHeader('Content-Type', 'text/event-stream');
+		res.setHeader('Cache-Control', 'no-cache');
+		res.setHeader('Connection', 'keep-alive');
+		res.flushHeaders();
+
+		const sendMetrics = async () => {
+			try {
+				const [waiting, active, completed, failed, delayed] = await Promise.all([
+					emailQueue.getWaitingCount(),
+					emailQueue.getActiveCount(),
+					emailQueue.getCompletedCount(),
+					emailQueue.getFailedCount(),
+					emailQueue.getDelayedCount(),
+				]);
+
+				const payload = { waiting, active, completed, failed, delayed };
+				res.write(`data: ${JSON.stringify(payload)}\n\n`);
+			} catch (err) {
+				console.error('[SSE] Erro ao buscar métricas', err);
+			}
+		};
+
+		sendMetrics();
+
+		let timeout: NodeJS.Timeout | null = null;
+		const debouncedSendMetrics = () => {
+			if (timeout) return;
+			timeout = setTimeout(() => {
+				sendMetrics();
+				timeout = null;
+			}, 500); // Throttling de 500ms para evitar sobrecarga no Redis
+		};
+
+		globalQueueEvents.on('waiting', debouncedSendMetrics);
+		globalQueueEvents.on('active', debouncedSendMetrics);
+		globalQueueEvents.on('completed', debouncedSendMetrics);
+		globalQueueEvents.on('failed', debouncedSendMetrics);
+		globalQueueEvents.on('delayed', debouncedSendMetrics);
+
+		const keepAlive = setInterval(() => {
+			res.write(': ping\n\n');
+		}, 30000);
+
+		req.on('close', () => {
+			console.log(chalk.yellow(`[${getTimestamp()}] [SSE Desconectado]`));
+			clearInterval(keepAlive);
+			if (timeout) clearTimeout(timeout);
+			globalQueueEvents.off('waiting', debouncedSendMetrics);
+			globalQueueEvents.off('active', debouncedSendMetrics);
+			globalQueueEvents.off('completed', debouncedSendMetrics);
+			globalQueueEvents.off('failed', debouncedSendMetrics);
+			globalQueueEvents.off('delayed', debouncedSendMetrics);
+			res.end();
+		});
 	}
 }
 

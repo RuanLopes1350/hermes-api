@@ -203,21 +203,24 @@ class EmailService {
 		};
 	}
 
-	async listEmails(serviceId: string, userId: string, status?: string) {
+	async listEmails(serviceId: string, currentUser: any, status?: string) {
+		const userId = currentUser.id;
 		const serviceExists = await serviceRepository.findServiceAndUserRole(serviceId, userId);
 		if (!serviceExists) throw new EmailDomainError('Serviço não encontrado.', 404, 'NOT_FOUND');
 		return emailRepository.findAllByService(serviceId, status);
 	}
 
-	async getEmail(serviceId: string, emailId: string, userId: string) {
+	async getEmail(serviceId: string, emailId: string, currentUser: any) {
+		const userId = currentUser.id;
 		const found = await emailRepository.findById(emailId);
 		if (!found || found.service_id !== serviceId)
 			throw new EmailDomainError('E-mail não encontrado.', 404, 'NOT_FOUND');
 		return found;
 	}
 
-	async cancelEmail(serviceId: string, emailId: string, userId: string) {
-		const found = await this.getEmail(serviceId, emailId, userId);
+	async cancelEmail(serviceId: string, emailId: string, currentUser: any) {
+		const userId = currentUser.id;
+		const found = await this.getEmail(serviceId, emailId, currentUser);
 		if (found.status !== 'pending') {
 			throw new EmailDomainError(
 				`Apenas e-mails pendentes podem ser cancelados. Status: ${found.status}`,

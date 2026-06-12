@@ -8,8 +8,7 @@ class ServiceController {
 	async createService(req: Request, res: Response, next: NextFunction) {
 		console.log(chalk.cyan(`[${getTimestamp()}] [POST] /api/services`));
 		try {
-			const userId = req.user!.id;
-			const newService = await serviceService.createService(req.body, userId);
+			const newService = await serviceService.createService(req.body, req.user);
 			return CommonResponse.created(res, newService, 'Serviço criado com sucesso!');
 		} catch (error) {
 			next(error);
@@ -19,9 +18,13 @@ class ServiceController {
 	async listServices(req: Request, res: Response, next: NextFunction) {
 		console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/services`));
 		try {
-			const userId = req.user!.id;
-			const services = await serviceService.listServices(userId);
-			return CommonResponse.success(res, services, 200, `${services.length} serviço(s) encontrado(s).`);
+			const services = await serviceService.listServices(req.user);
+			return CommonResponse.success(
+				res,
+				services,
+				200,
+				`${services.length} serviço(s) encontrado(s).`,
+			);
 		} catch (error) {
 			next(error);
 		}
@@ -31,8 +34,7 @@ class ServiceController {
 		const id = String(req.params.id);
 		console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/services/${id}`));
 		try {
-			const userId = req.user!.id;
-			const found = await serviceService.getService(id, userId);
+			const found = await serviceService.getService(id, req.user);
 			return CommonResponse.success(res, found, 200, 'Serviço encontrado.');
 		} catch (error) {
 			next(error);
@@ -43,8 +45,7 @@ class ServiceController {
 		const id = String(req.params.id);
 		console.log(chalk.cyan(`[${getTimestamp()}] [PATCH] /api/services/${id}`));
 		try {
-			const userId = req.user!.id;
-			const updated = await serviceService.updateService(id, req.body, userId);
+			const updated = await serviceService.updateService(id, req.body, req.user);
 			return CommonResponse.success(res, updated, 200, 'Serviço atualizado com sucesso.');
 		} catch (error) {
 			next(error);
@@ -55,8 +56,7 @@ class ServiceController {
 		const id = String(req.params.id);
 		console.log(chalk.cyan(`[${getTimestamp()}] [DELETE] /api/services/${id}`));
 		try {
-			const userId = req.user!.id;
-			const result = await serviceService.deleteService(id, userId);
+			const result = await serviceService.deleteService(id, req.user);
 			return CommonResponse.success(res, result, 200, 'Serviço removido com sucesso.');
 		} catch (error) {
 			next(error);
@@ -68,9 +68,13 @@ class ServiceController {
 	async listMembers(req: Request, res: Response, next: NextFunction) {
 		const id = String(req.params.id);
 		try {
-			const userId = req.user!.id;
-			const members = await serviceService.listMembers(id, userId);
-			return CommonResponse.success(res, members, 200, `${members.length} membro(s) encontrado(s).`);
+			const members = await serviceService.listMembers(id, req.user);
+			return CommonResponse.success(
+				res,
+				members,
+				200,
+				`${members.length} membro(s) encontrado(s).`,
+			);
 		} catch (error) {
 			next(error);
 		}
@@ -79,8 +83,7 @@ class ServiceController {
 	async addMember(req: Request, res: Response, next: NextFunction) {
 		const id = String(req.params.id);
 		try {
-			const userId = req.user!.id;
-			const result = await serviceService.addMember(id, req.body.email, userId);
+			const result = await serviceService.addMember(id, req.body.email, req.user);
 			return CommonResponse.success(res, result, 200, 'Membro adicionado com sucesso.');
 		} catch (error) {
 			next(error);
@@ -91,8 +94,7 @@ class ServiceController {
 		const id = String(req.params.id);
 		const targetUserId = String(req.params.userId);
 		try {
-			const userId = req.user!.id;
-			const result = await serviceService.removeMember(id, targetUserId, userId);
+			const result = await serviceService.removeMember(id, targetUserId, req.user);
 			return CommonResponse.success(res, result, 200, 'Membro removido com sucesso.');
 		} catch (error) {
 			next(error);
@@ -102,8 +104,7 @@ class ServiceController {
 	async transferOwnership(req: Request, res: Response, next: NextFunction) {
 		const id = String(req.params.id);
 		try {
-			const userId = req.user!.id;
-			const result = await serviceService.transferOwnership(id, req.body.newOwnerId, userId);
+			const result = await serviceService.transferOwnership(id, req.body.newOwnerId, req.user);
 			return CommonResponse.success(res, result, 200, 'Propriedade transferida com sucesso.');
 		} catch (error) {
 			next(error);

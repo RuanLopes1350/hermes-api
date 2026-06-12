@@ -95,19 +95,23 @@ export const service = pgTable('service', {
 
 export const service_member_role_enum = pgEnum('service_member_role_enum', ['owner', 'member']);
 
-export const service_member = pgTable('service_member', {
-	id: text('id').primaryKey().notNull(),
-	service_id: text('service_id')
-		.notNull()
-		.references(() => service.id, { onDelete: 'cascade' }),
-	user_id: text('user_id')
-		.notNull()
-		.references(() => user.id, { onDelete: 'cascade' }),
-	role: service_member_role_enum('role').notNull().default('member'),
-	createdAt: timestamp('created_at').notNull().defaultNow(),
-}, (t) => ({
-	unq: unique().on(t.service_id, t.user_id),
-}));
+export const service_member = pgTable(
+	'service_member',
+	{
+		id: text('id').primaryKey().notNull(),
+		service_id: text('service_id')
+			.notNull()
+			.references(() => service.id, { onDelete: 'cascade' }),
+		user_id: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		role: service_member_role_enum('role').notNull().default('member'),
+		createdAt: timestamp('created_at').notNull().defaultNow(),
+	},
+	(t) => ({
+		unq: unique().on(t.service_id, t.user_id),
+	}),
+);
 
 export const credential = pgTable('credential', {
 	id: text('id').primaryKey().notNull(),

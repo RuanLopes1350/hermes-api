@@ -24,7 +24,9 @@ class CredentialRepository {
 		prefix: string;
 		expiresAt?: Date | null;
 	}) {
-		console.log(chalk.magenta(`[${getTimestamp()}] [DB] [CredentialRepository] Inserindo credencial...`));
+		console.log(
+			chalk.magenta(`[${getTimestamp()}] [DB] [CredentialRepository] Inserindo credencial...`),
+		);
 		try {
 			const [newCredential] = await db
 				.insert(credential)
@@ -124,7 +126,13 @@ class CredentialRepository {
 			const [found] = await db
 				.select()
 				.from(credential)
-				.where(and(eq(credential.key_hash, hash), isNull(credential.deletedAt), eq(credential.is_active, true)))
+				.where(
+					and(
+						eq(credential.key_hash, hash),
+						isNull(credential.deletedAt),
+						eq(credential.is_active, true),
+					),
+				)
 				.limit(1);
 			return (found as CredentialType) ?? null;
 		} catch (error) {

@@ -105,18 +105,8 @@ class CredentialController {
 
 	async callbackGoogle(req: Request, res: Response, next: NextFunction) {
 		try {
-			const { code, state } = req.query;
-			if (!code || !state) throw new Error('Parâmetros inválidos no callback do Google.');
-
-			const [serviceId, credentialId] = String(state).split(':');
-
-			await credentialService.finishGoogleAuth(credentialId, String(code));
-
-			// Redireciona de volta para o dashboard (Frontend)
-			const frontendUrl = (process.env.AUTH_TRUSTED_ORIGINS || 'http://localhost:3000').split(
-				',',
-			)[0];
-			return res.redirect(`${frontendUrl}/system/services/${serviceId}?auth=success`);
+			const redirectUrl = await credentialService.handleGoogleCallback(req.query);
+			return res.redirect(redirectUrl);
 		} catch (error) {
 			next(error);
 		}
