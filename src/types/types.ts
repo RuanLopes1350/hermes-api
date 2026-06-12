@@ -81,23 +81,9 @@ export type ServiceType = {
 	id?: string;
 	name: string;
 	creator_id: string;
-	owner_id: string;
 	settings?: ServiceSettingsType;
 	createdAt?: Date;
 	updatedAt?: Date;
-};
-
-export type ApiKeyType = {
-	id?: string;
-	name: string;
-	key_hash: string;
-	prefix: string;
-	service_id: string;
-	is_active: boolean;
-	last_used_at?: Date | null;
-	expiresAt?: Date | null;
-	notification_sent_at?: Date | null;
-	createdAt?: Date;
 };
 
 export type CredentialType = {
@@ -112,7 +98,12 @@ export type CredentialType = {
 	client_id?: string | null;
 	client_secret?: string | null;
 	refresh_token?: string | null;
+	key_hash: string;
+	prefix: string;
+	is_active: boolean;
+	expires_at?: Date | null;
 	service_id: string;
+	creator_id: string;
 	createdAt?: Date;
 	updatedAt?: Date;
 };
@@ -145,13 +136,3 @@ export type EmailType = {
 	createdAt?: Date;
 };
 
-export type LogType = {
-	id?: string;
-	method: string;
-	endpoint: string;
-	status_code: number;
-	ip_address: string;
-	api_key_id?: string | null;
-	user_id?: string | null;
-	createdAt?: Date;
-};

@@ -10,7 +10,6 @@ import { fileURLToPath } from 'url';
 
 extendZodWithOpenApi(z);
 
-import { createApiKeySchema, updateApiKeySchema } from '../utils/validation/apiKeyValidation.js';
 import {
 	createCredentialSchema,
 	updateCredentialSchema,
@@ -97,69 +96,6 @@ registry.registerPath({
 	responses: { 200: res200 },
 });
 
-/* ================== API KEYS ================== */
-registry.registerPath({
-	method: 'post',
-	path: '/api/services/{serviceId}/api-keys',
-	tags: ['API Keys'],
-	security: [{ [bearerAuth.name]: [] }],
-	request: {
-		params: z.object({ serviceId: z.string() }),
-		body: { content: { 'application/json': { schema: createApiKeySchema } } },
-	},
-	responses: { 201: res201 },
-});
-registry.registerPath({
-	method: 'get',
-	path: '/api/services/{serviceId}/api-keys',
-	tags: ['API Keys'],
-	security: [{ [bearerAuth.name]: [] }],
-	request: reqParamSrvId,
-	responses: { 200: res200 },
-});
-registry.registerPath({
-	method: 'post',
-	path: '/api/services/{serviceId}/api-keys/{id}/rotate',
-	tags: ['API Keys'],
-	security: [{ [bearerAuth.name]: [] }],
-	request: reqParamBoth,
-	responses: { 200: res200 },
-});
-registry.registerPath({
-	method: 'get',
-	path: '/api/api-keys',
-	tags: ['API Keys'],
-	security: [{ [bearerAuth.name]: [] }],
-	responses: { 200: res200 },
-});
-registry.registerPath({
-	method: 'get',
-	path: '/api/api-keys/{id}',
-	tags: ['API Keys'],
-	security: [{ [bearerAuth.name]: [] }],
-	request: reqParamId,
-	responses: { 200: res200 },
-});
-registry.registerPath({
-	method: 'patch',
-	path: '/api/api-keys/{id}',
-	tags: ['API Keys'],
-	security: [{ [bearerAuth.name]: [] }],
-	request: {
-		params: z.object({ id: z.string() }),
-		body: { content: { 'application/json': { schema: updateApiKeySchema } } },
-	},
-	responses: { 200: res200 },
-});
-registry.registerPath({
-	method: 'delete',
-	path: '/api/api-keys/{id}',
-	tags: ['API Keys'],
-	security: [{ [bearerAuth.name]: [] }],
-	request: reqParamId,
-	responses: { 200: res200 },
-});
-
 /* ================== CREDENTIALS ================== */
 registry.registerPath({
 	method: 'post',
@@ -216,8 +152,22 @@ registry.registerPath({
 });
 
 /* ================== EMAILS ================== */
-registry.registerPath({ method: 'post', path: '/api/emails', tags: ['E-mails'], security: [{ [apiKeyAuth.name]: [] }], request: { body: { content: { 'application/json': { schema: createEmailSchema } } } }, responses: { 201: res201 } });
-registry.registerPath({ method: 'post', path: '/api/emails/bulk', tags: ['E-mails'], security: [{ [apiKeyAuth.name]: [] }], request: { body: { content: { 'application/json': { schema: createBulkEmailSchema } } } }, responses: { 201: res201 } });
+registry.registerPath({
+	method: 'post',
+	path: '/api/emails',
+	tags: ['E-mails'],
+	security: [{ [apiKeyAuth.name]: [] }],
+	request: { body: { content: { 'application/json': { schema: createEmailSchema } } } },
+	responses: { 201: res201 },
+});
+registry.registerPath({
+	method: 'post',
+	path: '/api/emails/bulk',
+	tags: ['E-mails'],
+	security: [{ [apiKeyAuth.name]: [] }],
+	request: { body: { content: { 'application/json': { schema: createBulkEmailSchema } } } },
+	responses: { 201: res201 },
+});
 registry.registerPath({
 	method: 'get',
 	path: '/api/services/{serviceId}/emails',

@@ -18,12 +18,10 @@ const __dirname = path.dirname(__filename);
 // Importação das rotas
 import userRouter from './routes/userRoutes.js';
 import serviceRouter from './routes/serviceRoutes.js';
-import apiKeyRouter from './routes/apiKeyRoutes.js';
 import credentialRouter from './routes/credentialRoutes.js';
 import templateRouter from './routes/templateRoutes.js';
 import emailRouter from './routes/emailRoutes.js';
 import dashboardRouter from './routes/dashboardRoutes.js';
-import { processApiKeyRotation } from './jobs/apiKeyRotationJob.js';
 import { getTimestamp } from './utils/helpers/dateUtils.js';
 
 dotenv.config({ quiet: true });
@@ -95,7 +93,11 @@ try {
 		const swaggerDocument = JSON.parse(fs.readFileSync(swaggerFile, 'utf8'));
 		app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 	} else {
-		console.log(chalk.yellow(`[Swagger] Arquivo swagger-output.json não encontrado. Rode "npm run docs:generate" para criá-lo.`));
+		console.log(
+			chalk.yellow(
+				`[Swagger] Arquivo swagger-output.json não encontrado. Rode "npm run docs:generate" para criá-lo.`,
+			),
+		);
 	}
 } catch (error) {
 	console.error(chalk.red(`[Swagger] Erro ao carregar documentação: ${error}`));
@@ -103,7 +105,6 @@ try {
 
 app.use('/api', userRouter);
 app.use('/api', serviceRouter);
-app.use('/api', apiKeyRouter);
 app.use('/api', credentialRouter);
 app.use('/api', templateRouter);
 app.use('/api', emailRouter);
@@ -127,7 +128,6 @@ async function createAdminUser() {
 async function startServer() {
 	try {
 		await dbConnect.connect();
-		processApiKeyRotation();
 		app.listen(PORT, () => {
 			console.log(chalk.green.bold(`[${getTimestamp()}] [SUCCESS] Hermes API na porta ${PORT}`));
 		});

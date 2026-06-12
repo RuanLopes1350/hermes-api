@@ -46,22 +46,26 @@ class EmailRepository {
 	}
 
 	// Registra uma lista de e-mails de uma vez (Bulk Insert)
-	async createBulk(items: {
-		serviceId: string;
-		credentialId?: string;
-		templateId?: string;
-		subject: string;
-		recipientTo: string;
-		body?: string;
-		variables?: Record<string, any>;
-		scheduledAt?: Date;
-		priority?: 'high' | 'medium' | 'low';
-	}[]) {
+	async createBulk(
+		items: {
+			serviceId: string;
+			credentialId?: string;
+			templateId?: string;
+			subject: string;
+			recipientTo: string;
+			body?: string;
+			variables?: Record<string, any>;
+			scheduledAt?: Date;
+			priority?: 'high' | 'medium' | 'low';
+		}[],
+	) {
 		console.log(
-			chalk.magenta(`[${getTimestamp()}] [DB] [EmailRepository] Inserindo ${items.length} e-mails em lote...`),
+			chalk.magenta(
+				`[${getTimestamp()}] [DB] [EmailRepository] Inserindo ${items.length} e-mails em lote...`,
+			),
 		);
 		try {
-			const valuesToInsert = items.map(item => ({
+			const valuesToInsert = items.map((item) => ({
 				id: uuidv4(),
 				service_id: item.serviceId,
 				credential_id: item.credentialId,
@@ -73,7 +77,7 @@ class EmailRepository {
 				scheduled_at: item.scheduledAt,
 				priority: item.priority ?? 'medium',
 			}));
-			
+
 			const newEmails = await db.insert(email).values(valuesToInsert).returning();
 			return newEmails;
 		} catch (error) {

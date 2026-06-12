@@ -68,6 +68,7 @@ export const updateCredentialSchema = z.object({
 	smtpSecure: smtpSecureSchema.optional(),
 	clientId: z.string().optional(),
 	clientSecret: z.string().optional(),
+	is_active: z.boolean().optional(),
 });
 
 export type CreateCredentialInput = z.infer<typeof createCredentialSchema>;

@@ -1,7 +1,11 @@
 import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import { auth } from '../utils/auth.js';
-import { createUserSchema, updateUserSchema, adminUpdateUserSchema } from '../utils/validation/userValidation.js';
+import {
+	createUserSchema,
+	updateUserSchema,
+	adminUpdateUserSchema,
+} from '../utils/validation/userValidation.js';
 import { isAPIError } from 'better-auth/api';
 import HttpStatusCode from '../utils/helpers/httpStatusCode.js';
 import { DomainError } from '../utils/helpers/domainError.js';
@@ -148,13 +152,11 @@ class UserService {
 
 	// Atualiza permissões ou status (isAdmin, isActive). Exclusivo para administradores.
 	//
-	async adminUpdateUser(
-		targetId: string,
-		data: unknown,
-		requesterIsAdmin: boolean,
-	) {
+	async adminUpdateUser(targetId: string, data: unknown, requesterIsAdmin: boolean) {
 		console.log(
-			chalk.blue.bold(`[${getTimestamp()}] [INFO] [UserService] Admin atualizando usuário: ${targetId}`),
+			chalk.blue.bold(
+				`[${getTimestamp()}] [INFO] [UserService] Admin atualizando usuário: ${targetId}`,
+			),
 		);
 
 		if (!requesterIsAdmin) {

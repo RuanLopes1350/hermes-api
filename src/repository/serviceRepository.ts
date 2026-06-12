@@ -1,83 +1,85 @@
 import { db } from '../config/dbConfig.js';
 import { and, eq, isNull } from 'drizzle-orm';
-import { service } from '../config/db/schema.js';
+import { service, service_member } from '../config/db/schema.js';
 import { v4 as uuidv4 } from 'uuid';
 import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import { parseDatabaseError } from '../utils/helpers/dbErrors.js';
 
 class ServiceRepository {
-	// Cria um novo serviço e o retorna.
-	async createService(data: { name: string; creatorId: string; ownerId: string; settings?: any }) {
-		console.log(
-			chalk.magenta(`[${getTimestamp()}] [DB] [ServiceRepository] Inserindo novo serviço...`),
-		);
+	async createService(data: { name: string; creatorId: string; settings?: any }) {
+		console.log(chalk.magenta(`[${getTimestamp()}] [DB] [ServiceRepository] Inserindo novo serviço...`));
 		try {
-			const [newService] = await db
-				.insert(service)
-				.values({
+			return await db.transaction(async (tx) => {
+				const serviceId = uuidv4();
+				const [newService] = await tx
+					.insert(service)
+					.values({
+						id: serviceId,
+						name: data.name,
+						creator_id: data.creatorId,
+						settings: data.settings || {},
+					})
+					.returning();
+
+				await tx.insert(service_member).values({
 					id: uuidv4(),
-					name: data.name,
-					creator_id: data.creatorId,
-					owner_id: data.ownerId,
-					settings: data.settings || {},
-				})
-				.returning();
-			return newService;
+					service_id: serviceId,
+					user_id: data.creatorId,
+					role: 'owner',
+				});
+
+				return newService;
+			});
 		} catch (error) {
 			throw parseDatabaseError(error, 'ServiceRepository.createService');
 		}
 	}
 
-	// Lista todos os serviços ativos (não soft-deletados) de um determinado dono.
-	async findAllByOwner(ownerId: string) {
-		console.log(
-			chalk.magenta(
-				`[${getTimestamp()}] [DB] [ServiceRepository] Listando serviços do usuário: ${ownerId}`,
-			),
-		);
+	async findAllByUser(userId: string) {
+		console.log(chalk.magenta(`[${getTimestamp()}] [DB] [ServiceRepository] Listando serviços do usuário: ${userId}`));
 		try {
-			return await db
-				.select()
+			const rows = await db
+				.select({
+					service: service,
+					role: service_member.role,
+				})
 				.from(service)
-				.where(and(eq(service.owner_id, ownerId), isNull(service.deletedAt)));
+				.innerJoin(service_member, eq(service.id, service_member.service_id))
+				.where(and(eq(service_member.user_id, userId), isNull(service.deletedAt)));
+			
+			// Map to return the service object but with an injected _role for frontend
+			return rows.map((r) => ({ ...r.service, _role: r.role }));
 		} catch (error) {
-			throw parseDatabaseError(error, 'ServiceRepository.findAllByOwner');
+			throw parseDatabaseError(error, 'ServiceRepository.findAllByUser');
 		}
 	}
 
-	// Busca um serviço ativo por ID e verifica que pertence ao owner informado.
-	// Retorna null se não encontrado ou se foi soft-deletado.
-	async findByIdAndOwner(serviceId: string, ownerId: string) {
-		console.log(
-			chalk.magenta(`[${getTimestamp()}] [DB] [ServiceRepository] Buscando serviço: ${serviceId}`),
-		);
+	async findServiceAndUserRole(serviceId: string, userId: string): Promise<{ service: typeof service.$inferSelect, role: 'owner' | 'member' } | null> {
+		console.log(chalk.magenta(`[${getTimestamp()}] [DB] [ServiceRepository] Buscando serviço e role: ${serviceId}`));
 		try {
-			const [found] = await db
-				.select()
+			const [result] = await db
+				.select({
+					service: service,
+					role: service_member.role,
+				})
 				.from(service)
-				.where(
-					and(eq(service.id, serviceId), eq(service.owner_id, ownerId), isNull(service.deletedAt)),
-				)
+				.innerJoin(service_member, eq(service.id, service_member.service_id))
+				.where(and(eq(service.id, serviceId), eq(service_member.user_id, userId), isNull(service.deletedAt)))
 				.limit(1);
-			return found ?? null;
+			return result ?? null;
 		} catch (error) {
-			throw parseDatabaseError(error, 'ServiceRepository.findByIdAndOwner');
+			throw parseDatabaseError(error, 'ServiceRepository.findServiceAndUserRole');
 		}
 	}
 
-	// Busca um serviço pelo ID (usado por rotinas de background, como workers)
 	async findById(serviceId: string) {
-		console.log(
-			chalk.magenta(`[${getTimestamp()}] [DB] [ServiceRepository] Buscando serviço (worker): ${serviceId}`),
-		);
+		console.log(chalk.magenta(`[${getTimestamp()}] [DB] [ServiceRepository] Buscando serviço (worker): ${serviceId}`));
 		try {
 			const [found] = await db
 				.select()
 				.from(service)
-				.where(
-					and(eq(service.id, serviceId), isNull(service.deletedAt)),
-				)
+				.where(and(eq(service.id, serviceId), isNull(service.deletedAt)))
 				.limit(1);
 			return found ?? null;
 		} catch (error) {
@@ -85,13 +87,8 @@ class ServiceRepository {
 		}
 	}
 
-	// Atualiza nome e/ou settings de um serviço.
 	async updateById(serviceId: string, data: { name?: string; settings?: any }) {
-		console.log(
-			chalk.magenta(
-				`[${getTimestamp()}] [DB] [ServiceRepository] Atualizando serviço: ${serviceId}`,
-			),
-		);
+		console.log(chalk.magenta(`[${getTimestamp()}] [DB] [ServiceRepository] Atualizando serviço: ${serviceId}`));
 		try {
 			const [updated] = await db
 				.update(service)
@@ -104,14 +101,8 @@ class ServiceRepository {
 		}
 	}
 
-	// Soft delete: marca o serviço como deletado sem removê-lo do banco.
-	// Preserva rastreabilidade de todas as entidades associadas.
 	async softDeleteById(serviceId: string) {
-		console.log(
-			chalk.magenta(
-				`[${getTimestamp()}] [DB] [ServiceRepository] Soft delete do serviço: ${serviceId}`,
-			),
-		);
+		console.log(chalk.magenta(`[${getTimestamp()}] [DB] [ServiceRepository] Soft delete do serviço: ${serviceId}`));
 		try {
 			const [deleted] = await db
 				.update(service)

@@ -59,7 +59,9 @@ async function processEmailJob(job: Job<EmailJobPayload>) {
 
 	if (credentialData.auth_type === 'oauth2') {
 		console.log(
-			chalk.magenta(`[${getTimestamp()}] [WORKER] OAuth2: Tentando enviar como ${credentialData.login}`),
+			chalk.magenta(
+				`[${getTimestamp()}] [WORKER] OAuth2: Tentando enviar como ${credentialData.login}`,
+			),
 		);
 
 		if (!credentialData.client_secret || !credentialData.refresh_token) {
@@ -79,8 +81,8 @@ async function processEmailJob(job: Job<EmailJobPayload>) {
 				clientSecret: clientSecret,
 				refreshToken: refreshToken,
 			},
-			debug: true, 
-			logger: true // ATIVA LOGS DE PROTOCOLO SMTP NO CONSOLE
+			debug: true,
+			logger: true, // ATIVA LOGS DE PROTOCOLO SMTP NO CONSOLE
 		};
 	} else {
 		if (!credentialData.passkey) {
@@ -153,10 +155,8 @@ async function processEmailJob(job: Job<EmailJobPayload>) {
 			),
 		);
 	} catch (error: any) {
-		console.error(
-			chalk.red(`[${getTimestamp()}] [WORKER] Erro Nodemailer: ${error.message}`),
-		);
-		
+		console.error(chalk.red(`[${getTimestamp()}] [WORKER] Erro Nodemailer: ${error.message}`));
+
 		// Log detalhado do erro SMTP
 		if (error.response) console.error(chalk.red(`[SMTP Response]: ${error.response}`));
 

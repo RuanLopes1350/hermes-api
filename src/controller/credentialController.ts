@@ -113,7 +113,9 @@ class CredentialController {
 			await credentialService.finishGoogleAuth(credentialId, String(code));
 
 			// Redireciona de volta para o dashboard (Frontend)
-			const frontendUrl = (process.env.AUTH_TRUSTED_ORIGINS || 'http://localhost:3000').split(',')[0];
+			const frontendUrl = (process.env.AUTH_TRUSTED_ORIGINS || 'http://localhost:3000').split(
+				',',
+			)[0];
 			return res.redirect(`${frontendUrl}/system/services/${serviceId}?auth=success`);
 		} catch (error) {
 			next(error);

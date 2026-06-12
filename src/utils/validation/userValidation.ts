@@ -22,10 +22,12 @@ export const updateUserSchema = z
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 
-export const adminUpdateUserSchema = z.object({
-	isAdmin: z.boolean().optional(),
-	isActive: z.boolean().optional(),
-}).refine((data) => data.isAdmin !== undefined || data.isActive !== undefined, {
-	message: 'Informe ao menos um campo para atualizar: isAdmin ou isActive.',
-});
+export const adminUpdateUserSchema = z
+	.object({
+		isAdmin: z.boolean().optional(),
+		isActive: z.boolean().optional(),
+	})
+	.refine((data) => data.isAdmin !== undefined || data.isActive !== undefined, {
+		message: 'Informe ao menos um campo para atualizar: isAdmin ou isActive.',
+	});
 export type AdminUpdateUserInput = z.infer<typeof adminUpdateUserSchema>;

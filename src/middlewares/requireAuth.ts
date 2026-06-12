@@ -89,7 +89,9 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 		req.session = sessionData.session;
 
 		if (!req.user.isActive) {
-			console.warn(chalk.yellow(`[requireAuth] Acesso bloqueado para usuário inativo: ${req.user.email}`));
+			console.warn(
+				chalk.yellow(`[requireAuth] Acesso bloqueado para usuário inativo: ${req.user.email}`),
+			);
 			CommonResponse.error(
 				res,
 				HttpStatusCode.FORBIDDEN.code,

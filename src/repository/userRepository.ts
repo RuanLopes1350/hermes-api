@@ -58,7 +58,10 @@ class UserRepository {
 
 	// Atualiza campos permitidos do usuário (name, image, isAdmin, isActive).
 	// Email e senha são gerenciados pelo Better Auth, não por aqui.
-	async updateById(id: string, data: { name?: string; image?: string; isAdmin?: boolean; isActive?: boolean }) {
+	async updateById(
+		id: string,
+		data: { name?: string; image?: string; isAdmin?: boolean; isActive?: boolean },
+	) {
 		console.log(
 			chalk.magenta(`[${getTimestamp()}] [DB] [UserRepository] Atualizando usuário: ${id}`),
 		);

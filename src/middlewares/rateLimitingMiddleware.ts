@@ -7,10 +7,10 @@ export const emailApiRateLimiter = rateLimit({
 	// Se houver apiKeyId, usamos ele. Caso contrário, deixamos o express-rate-limit
 	// usar o gerador de IP padrão que já trata IPv6 corretamente.
 	keyGenerator: (req) => {
-		return (req.apiKeyId || req.ip || 'unknown').toString();
+		return (req.credentialId || req.ip || 'unknown').toString();
 	},
 	// Adicionamos skip para que, se não houver IP nem API Key (raro), ele não quebre
-	skip: (req) => !req.apiKeyId && !req.ip,
+	skip: (req) => !req.credentialId && !req.ip,
 	message: 'Muitas requisições de e-mail a partir desta API Key. Tente novamente em um minuto.',
 	standardHeaders: true,
 	legacyHeaders: false,

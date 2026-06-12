@@ -7,6 +7,7 @@ import {
 	timestamp,
 	jsonb,
 	pgEnum,
+	unique,
 } from 'drizzle-orm/pg-core';
 
 // ==================================================================================
@@ -86,14 +87,27 @@ export const service = pgTable('service', {
 	creator_id: text('creator_id')
 		.notNull()
 		.references(() => user.id, { onDelete: 'cascade' }),
-	owner_id: text('owner_id')
-		.notNull()
-		.references(() => user.id, { onDelete: 'cascade' }),
 	settings: jsonb('settings').default('{}'),
 	createdAt: timestamp('created_at').notNull().defaultNow(),
 	updatedAt: timestamp('updated_at').notNull().defaultNow(),
 	deletedAt: timestamp('deleted_at'),
 });
+
+export const service_member_role_enum = pgEnum('service_member_role_enum', ['owner', 'member']);
+
+export const service_member = pgTable('service_member', {
+	id: text('id').primaryKey().notNull(),
+	service_id: text('service_id')
+		.notNull()
+		.references(() => service.id, { onDelete: 'cascade' }),
+	user_id: text('user_id')
+		.notNull()
+		.references(() => user.id, { onDelete: 'cascade' }),
+	role: service_member_role_enum('role').notNull().default('member'),
+	createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (t) => ({
+	unq: unique().on(t.service_id, t.user_id),
+}));
 
 export const credential = pgTable('credential', {
 	id: text('id').primaryKey().notNull(),
@@ -107,30 +121,18 @@ export const credential = pgTable('credential', {
 	client_id: text('client_id'),
 	client_secret: text('client_secret'),
 	refresh_token: text('refresh_token'),
-	service_id: text('service_id')
-		.notNull()
-		.references(() => service.id, { onDelete: 'cascade' }),
-	createdAt: timestamp('created_at').notNull().defaultNow(),
-	updatedAt: timestamp('updated_at').notNull().defaultNow(),
-	deletedAt: timestamp('deleted_at'),
-});
-
-export const api_key = pgTable('api_key', {
-	id: text('id').primaryKey().notNull(),
-	name: varchar('name').notNull(),
 	key_hash: text('key_hash').notNull().unique(),
 	prefix: varchar('prefix').notNull(),
+	is_active: boolean('is_active').notNull().default(true),
+	expiresAt: timestamp('expires_at'),
 	service_id: text('service_id')
 		.notNull()
 		.references(() => service.id, { onDelete: 'cascade' }),
-	credential_id: text('credential_id')
+	creator_id: text('creator_id')
 		.notNull()
-		.references(() => credential.id, { onDelete: 'cascade' }),
-	is_active: boolean('is_active').notNull().default(true),
-	last_used_at: timestamp('last_used_at'),
-	expiresAt: timestamp('expires_at'),
-	notification_sent_at: timestamp('notification_sent_at'),
+		.references(() => user.id, { onDelete: 'cascade' }),
 	createdAt: timestamp('created_at').notNull().defaultNow(),
+	updatedAt: timestamp('updated_at').notNull().defaultNow(),
 	deletedAt: timestamp('deleted_at'),
 });
 

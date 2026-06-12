@@ -2,7 +2,6 @@ import { Queue, Worker } from 'bullmq';
 import { redisConfig } from '../config/redisConfig.js';
 import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
-import { processApiKeyRotation } from '../jobs/apiKeyRotationJob.js';
 
 // 1. Definição da Fila de Sistema
 export const systemQueue = new Queue('system-queue', {
@@ -21,9 +20,8 @@ export const systemQueue = new Queue('system-queue', {
 export const systemWorker = new Worker(
 	'system-queue',
 	async (job) => {
-		if (job.name === 'api-key-rotation') {
-			await processApiKeyRotation();
-		}
+			// Outros jobs de sistema podem ser adicionados aqui no futuro.
+			console.log(chalk.gray(`[${getTimestamp()}] [SYSTEM_WORKER] Job ${job.name} concluído (sem ações necessárias no momento).`));
 	},
 	{ connection: redisConfig },
 );

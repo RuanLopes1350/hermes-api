@@ -37,7 +37,7 @@ class TemplateService {
 					'SERVICE_REQUIRED',
 				);
 			}
-			const serviceExists = await serviceRepository.findByIdAndOwner(serviceId, userId);
+			const serviceExists = await serviceRepository.findServiceAndUserRole(serviceId, userId);
 			if (!serviceExists) {
 				throw new TemplateDomainError(
 					'Serviço não encontrado ou você não tem permissão.',
@@ -67,7 +67,7 @@ class TemplateService {
 
 	// Lista todos os templates ativos de um serviço.
 	async listTemplates(serviceId: string, userId: string) {
-		const serviceExists = await serviceRepository.findByIdAndOwner(serviceId, userId);
+		const serviceExists = await serviceRepository.findServiceAndUserRole(serviceId, userId);
 		if (!serviceExists) {
 			throw new TemplateDomainError(
 				'Serviço não encontrado.',
@@ -98,7 +98,7 @@ class TemplateService {
 
 	// Busca um template por ID, verificando que pertence ao serviço do usuário.
 	async getTemplate(serviceId: string, templateId: string, userId: string) {
-		const serviceExists = await serviceRepository.findByIdAndOwner(serviceId, userId);
+		const serviceExists = await serviceRepository.findServiceAndUserRole(serviceId, userId);
 		if (!serviceExists) {
 			throw new TemplateDomainError(
 				'Serviço não encontrado.',
@@ -131,7 +131,7 @@ class TemplateService {
 
 		// Se tem service_id, verifica se o usuário é dono do serviço
 		if (found.service_id) {
-			const srv = await serviceRepository.findByIdAndOwner(found.service_id, userId);
+			const srv = await serviceRepository.findServiceAndUserRole(found.service_id, userId);
 			if (srv) return found;
 		}
 

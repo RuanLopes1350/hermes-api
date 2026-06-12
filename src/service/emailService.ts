@@ -44,13 +44,13 @@ class EmailService {
 		const parsedData = createEmailSchema.parse(data);
 
 		// 2. Buscar Serviço para obter prioridade padrão se necessário
-		const serviceData = await serviceRepository.findByIdAndOwner(serviceId, null as any); // Omitimos owner check aqui pois apiKey já valida
+		const serviceData = await serviceRepository.findById(serviceId); // apiKey já validou o acesso
 		const defaultPriority = (serviceData?.settings as any)?.defaultPriority || 'medium';
 
 		// 3. Validação de Template
 		if (parsedData.template_id) {
 			const tmpl = await templateRepository.findById(parsedData.template_id);
-			
+
 			// Se o template não existir OU (não for global E não pertencer a este serviço)
 			if (!tmpl || (!tmpl.global && tmpl.service_id !== serviceId)) {
 				throw new EmailDomainError(
@@ -127,16 +127,18 @@ class EmailService {
 
 		const parsedDataArray = createBulkEmailSchema.parse(data);
 
-		const serviceData = await serviceRepository.findByIdAndOwner(serviceId, null as any);
+		const serviceData = await serviceRepository.findById(serviceId);
 		const defaultPriority = (serviceData?.settings as any)?.defaultPriority || 'medium';
 
 		// Otimização: validar apenas os templates únicos usados no lote
-		const uniqueTemplateIds = [...new Set(parsedDataArray.map(item => item.template_id).filter(Boolean))] as string[];
-		
+		const uniqueTemplateIds = [
+			...new Set(parsedDataArray.map((item) => item.template_id).filter(Boolean)),
+		] as string[];
+
 		if (uniqueTemplateIds.length > 0) {
-			const templatePromises = uniqueTemplateIds.map(id => templateRepository.findById(id));
+			const templatePromises = uniqueTemplateIds.map((id) => templateRepository.findById(id));
 			const templates = await Promise.all(templatePromises);
-			
+
 			for (const tmpl of templates) {
 				if (!tmpl || (!tmpl.global && tmpl.service_id !== serviceId)) {
 					throw new EmailDomainError(
@@ -149,7 +151,7 @@ class EmailService {
 		}
 
 		// Preparar array para inserção no banco
-		const dbPayload = parsedDataArray.map(parsedData => {
+		const dbPayload = parsedDataArray.map((parsedData) => {
 			const finalPriority = (parsedData as any).priority || defaultPriority;
 			return {
 				serviceId: serviceId,
@@ -168,7 +170,7 @@ class EmailService {
 		const newEmails = await emailRepository.createBulk(dbPayload);
 
 		// 2. Preparar jobs para o Redis / BullMQ
-		const bullJobs = newEmails.map(dbEmail => {
+		const bullJobs = newEmails.map((dbEmail) => {
 			const bullPriority = (priorityMap as any)[dbEmail.priority] || 5;
 			return {
 				name: 'sendEmailJob',
@@ -182,7 +184,7 @@ class EmailService {
 					delay: dbEmail.scheduled_at
 						? Math.max(0, new Date(dbEmail.scheduled_at).getTime() - Date.now())
 						: 0,
-				}
+				},
 			};
 		});
 
@@ -194,15 +196,15 @@ class EmailService {
 				`[${getTimestamp()}] [SUCCESS] [EmailService] ${newEmails.length} e-mails enfileirados no Bulk (Redis).`,
 			),
 		);
-		
+
 		return {
 			message: `${newEmails.length} e-mails enfileirados com sucesso.`,
-			emails: newEmails.map(e => ({ id: e.id, recipient_to: e.recipient_to, status: e.status }))
+			emails: newEmails.map((e) => ({ id: e.id, recipient_to: e.recipient_to, status: e.status })),
 		};
 	}
 
 	async listEmails(serviceId: string, userId: string, status?: string) {
-		const serviceExists = await serviceRepository.findByIdAndOwner(serviceId, userId);
+		const serviceExists = await serviceRepository.findServiceAndUserRole(serviceId, userId);
 		if (!serviceExists) throw new EmailDomainError('Serviço não encontrado.', 404, 'NOT_FOUND');
 		return emailRepository.findAllByService(serviceId, status);
 	}

@@ -1,5 +1,5 @@
 import { db } from '../config/dbConfig.js';
-import { template, service } from '../config/db/schema.js';
+import { template, service_member } from '../config/db/schema.js';
 import { and, eq, isNull, or } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import chalk from 'chalk';
@@ -79,11 +79,11 @@ class TemplateRepository {
 					updatedAt: template.updatedAt,
 				})
 				.from(template)
-				.leftJoin(service, eq(template.service_id, service.id))
+				.leftJoin(service_member, eq(template.service_id, service_member.service_id))
 				.where(
 					and(
 						or(
-							eq(service.owner_id, userId),
+							eq(service_member.user_id, userId),
 							eq(template.creator_id, userId),
 							eq(template.global, true),
 						),
@@ -132,12 +132,12 @@ class TemplateRepository {
 					text_content: template.text_content,
 				})
 				.from(template)
-				.leftJoin(service, eq(template.service_id, service.id))
+				.leftJoin(service_member, eq(template.service_id, service_member.service_id))
 				.where(
 					and(
 						eq(template.id, id),
 						or(
-							eq(service.owner_id, userId),
+							eq(service_member.user_id, userId),
 							eq(template.creator_id, userId),
 							eq(template.global, true),
 						),

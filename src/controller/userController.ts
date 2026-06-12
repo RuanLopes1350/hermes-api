@@ -93,7 +93,12 @@ class UserController {
 			const requesterIsAdmin = req.user!.isAdmin ?? false;
 
 			const updated = await userService.adminUpdateUser(id, req.body, requesterIsAdmin);
-			return CommonResponse.success(res, updated, 200, 'Permissões do usuário atualizadas com sucesso.');
+			return CommonResponse.success(
+				res,
+				updated,
+				200,
+				'Permissões do usuário atualizadas com sucesso.',
+			);
 		} catch (error) {
 			next(error);
 		}
