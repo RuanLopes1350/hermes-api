@@ -133,7 +133,7 @@ class DashboardService {
 				description: row.description,
 				createdAt: row.created_at,
 				actorName: row.actor_name,
-				serviceName: row.service_name
+				serviceName: row.service_name,
 			})),
 			recentEmails: recentEmailsData.rows.map((row: any) => ({
 				id: row.id,
@@ -142,11 +142,11 @@ class DashboardService {
 				status: row.status,
 				priority: row.priority,
 				createdAt: row.created_at,
-				serviceName: row.service_name
+				serviceName: row.service_name,
 			})),
 			topServicesByVolume: topServicesByVolumeData.rows.map((row: any) => ({
 				name: row.name,
-				emailCount: Number(row.email_count)
+				emailCount: Number(row.email_count),
 			})),
 		};
 	}
@@ -274,7 +274,7 @@ class DashboardService {
 				description: row.description,
 				createdAt: row.created_at,
 				actorName: row.actor_name,
-				serviceName: row.service_name
+				serviceName: row.service_name,
 			})),
 			recentEmails: recentEmailsData.rows.map((row: any) => ({
 				id: row.id,
@@ -283,11 +283,11 @@ class DashboardService {
 				status: row.status,
 				priority: row.priority,
 				createdAt: row.created_at,
-				serviceName: row.service_name
+				serviceName: row.service_name,
 			})),
 			topTemplates: topTemplates.rows.map((row: any) => ({
 				name: row.name,
-				usage_count: Number(row.usage_count)
+				usage_count: Number(row.usage_count),
 			})),
 		};
 	}
