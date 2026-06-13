@@ -49,50 +49,105 @@ class DashboardService {
 			emailQueue.getFailedCount(),
 		]);
 
-		// 3. Latência Global: Média de (sent_at - created_at) por dia nos últimos 7 dias
-		const latencyData = await db.execute(sql`
+		// 3. Volume por dia (Últimos 7 dias)
+		const volumeByDayData = await db.execute(sql`
 			SELECT 
 				DATE(created_at) as date,
-				AVG(EXTRACT(EPOCH FROM (sent_at - created_at))) as avg_latency
+				COUNT(*) FILTER (WHERE status = 'sent') as sent,
+				COUNT(*) FILTER (WHERE status = 'failed') as failed
 			FROM email
-			WHERE status = 'sent' AND sent_at IS NOT NULL
-			  AND created_at >= NOW() - INTERVAL '7 days'
+			WHERE created_at >= NOW() - INTERVAL '7 days'
 			GROUP BY 1
 			ORDER BY 1 ASC
 		`);
 
-		// 4. Lista de Todos os Serviços com Nome do Dono
-		const allServices = await db
-			.select({
-				id: service.id,
-				name: service.name,
-				ownerName: user.name,
-				createdAt: service.createdAt,
-			})
-			.from(service)
-			.innerJoin(
-				service_member,
-				and(eq(service.id, service_member.service_id), eq(service_member.role, 'owner')),
-			)
-			.innerJoin(user, eq(service_member.user_id, user.id))
-			.where(isNull(service.deletedAt))
-			.orderBy(desc(service.createdAt))
-			.limit(10);
+		// 4. Distribuição de status
+		const statusDistributionData = await db.execute(sql`
+			SELECT status, COUNT(*) as total
+			FROM email
+			WHERE deleted_at IS NULL
+			GROUP BY status
+		`);
+
+		// 5. Atividade recente (service_log)
+		const recentActivityData = await db.execute(sql`
+			SELECT 
+				sl.action,
+				sl.description,
+				sl.created_at,
+				u.name as actor_name,
+				s.name as service_name
+			FROM service_log sl
+			LEFT JOIN "user" u ON sl.actor_id = u.id
+			LEFT JOIN service s ON sl.service_id = s.id
+			ORDER BY sl.created_at DESC
+			LIMIT 10
+		`);
+
+		// 6. Envios recentes melhorado
+		const recentEmailsData = await db.execute(sql`
+			SELECT 
+				e.id,
+				e.recipient_to as recipient,
+				e.subject,
+				e.status,
+				e.priority,
+				e.created_at,
+				s.name as service_name
+			FROM email e
+			LEFT JOIN service s ON e.service_id = s.id
+			WHERE e.deleted_at IS NULL
+			ORDER BY e.created_at DESC
+			LIMIT 10
+		`);
+
+		// 7. Top Serviços por Volume
+		const topServicesByVolumeData = await db.execute(sql`
+			SELECT 
+				s.name,
+				COUNT(e.id) as email_count
+			FROM email e
+			INNER JOIN service s ON e.service_id = s.id
+			WHERE s.deleted_at IS NULL
+			GROUP BY s.id, s.name
+			ORDER BY email_count DESC
+			LIMIT 5
+		`);
 
 		return {
 			summary: {
-				totalSent: totalEmailsRes[0].value,
-				totalFailed: failedEmailsRes[0].value,
-				totalUsers: totalUsersRes[0].value,
-				totalServices: totalServicesRes[0].value,
+				totalSent: Number(totalEmailsRes[0].value),
+				totalFailed: Number(failedEmailsRes[0].value),
+				totalUsers: Number(totalUsersRes[0].value),
+				totalServices: Number(totalServicesRes[0].value),
 			},
 			queue: {
 				waiting,
 				active,
 				failed: queueFailed,
 			},
-			latency: latencyData.rows,
-			allServices,
+			volumeByDay: volumeByDayData.rows,
+			statusDistribution: statusDistributionData.rows,
+			recentActivity: recentActivityData.rows.map((row: any) => ({
+				action: row.action,
+				description: row.description,
+				createdAt: row.created_at,
+				actorName: row.actor_name,
+				serviceName: row.service_name
+			})),
+			recentEmails: recentEmailsData.rows.map((row: any) => ({
+				id: row.id,
+				recipient: row.recipient,
+				subject: row.subject,
+				status: row.status,
+				priority: row.priority,
+				createdAt: row.created_at,
+				serviceName: row.service_name
+			})),
+			topServicesByVolume: topServicesByVolumeData.rows.map((row: any) => ({
+				name: row.name,
+				emailCount: Number(row.email_count)
+			})),
 		};
 	}
 
@@ -134,17 +189,61 @@ class DashboardService {
 				.where(and(eq(service_member.user_id, userId), isNull(template.deletedAt))),
 		]);
 
-		// 2. Latência Pessoal: Média por dia nos últimos 7 dias para os serviços do usuário
-		const latencyData = await db.execute(sql`
+		// 2. Volume por dia (Últimos 7 dias)
+		const volumeByDayData = await db.execute(sql`
 			SELECT 
 				DATE(e.created_at) as date,
-				AVG(EXTRACT(EPOCH FROM (e.sent_at - e.created_at))) as avg_latency
+				COUNT(*) FILTER (WHERE e.status = 'sent') as sent,
+				COUNT(*) FILTER (WHERE e.status = 'failed') as failed
 			FROM email e
 			INNER JOIN service_member sm ON e.service_id = sm.service_id
-			WHERE sm.user_id = ${userId} AND e.status = 'sent' AND e.sent_at IS NOT NULL
-			  AND e.created_at >= NOW() - INTERVAL '7 days'
+			WHERE sm.user_id = ${userId} AND e.created_at >= NOW() - INTERVAL '7 days'
 			GROUP BY 1
 			ORDER BY 1 ASC
+		`);
+
+		// 3. Distribuição de status
+		const statusDistributionData = await db.execute(sql`
+			SELECT e.status, COUNT(*) as total
+			FROM email e
+			INNER JOIN service_member sm ON e.service_id = sm.service_id
+			WHERE sm.user_id = ${userId} AND e.deleted_at IS NULL
+			GROUP BY e.status
+		`);
+
+		// 4. Atividade recente (service_log)
+		const recentActivityData = await db.execute(sql`
+			SELECT 
+				sl.action,
+				sl.description,
+				sl.created_at,
+				u.name as actor_name,
+				s.name as service_name
+			FROM service_log sl
+			INNER JOIN service_member sm ON sl.service_id = sm.service_id
+			LEFT JOIN "user" u ON sl.actor_id = u.id
+			LEFT JOIN service s ON sl.service_id = s.id
+			WHERE sm.user_id = ${userId}
+			ORDER BY sl.created_at DESC
+			LIMIT 10
+		`);
+
+		// 5. Envios recentes melhorado
+		const recentEmailsData = await db.execute(sql`
+			SELECT 
+				e.id,
+				e.recipient_to as recipient,
+				e.subject,
+				e.status,
+				e.priority,
+				e.created_at,
+				s.name as service_name
+			FROM email e
+			INNER JOIN service_member sm ON e.service_id = sm.service_id
+			LEFT JOIN service s ON e.service_id = s.id
+			WHERE sm.user_id = ${userId} AND e.deleted_at IS NULL
+			ORDER BY e.created_at DESC
+			LIMIT 10
 		`);
 
 		// 3. Top Templates
@@ -161,31 +260,35 @@ class DashboardService {
 			LIMIT 5
 		`);
 
-		// 4. Últimos Envios
-		const recentEmails = await db
-			.select({
-				id: email.id,
-				recipient: email.recipient_to,
-				subject: email.subject,
-				status: email.status,
-				createdAt: email.createdAt,
-			})
-			.from(email)
-			.innerJoin(service_member, eq(email.service_id, service_member.service_id))
-			.where(eq(service_member.user_id, userId))
-			.orderBy(desc(email.createdAt))
-			.limit(5);
-
 		return {
 			summary: {
-				sent: sentRes[0].value,
-				pending: pendingRes[0].value,
-				services: servicesRes[0].value,
-				templates: templatesRes[0].value,
+				sent: Number(sentRes[0].value),
+				pending: Number(pendingRes[0].value),
+				services: Number(servicesRes[0].value),
+				templates: Number(templatesRes[0].value),
 			},
-			latency: latencyData.rows,
-			topTemplates: topTemplates.rows,
-			recentEmails,
+			volumeByDay: volumeByDayData.rows,
+			statusDistribution: statusDistributionData.rows,
+			recentActivity: recentActivityData.rows.map((row: any) => ({
+				action: row.action,
+				description: row.description,
+				createdAt: row.created_at,
+				actorName: row.actor_name,
+				serviceName: row.service_name
+			})),
+			recentEmails: recentEmailsData.rows.map((row: any) => ({
+				id: row.id,
+				recipient: row.recipient,
+				subject: row.subject,
+				status: row.status,
+				priority: row.priority,
+				createdAt: row.created_at,
+				serviceName: row.service_name
+			})),
+			topTemplates: topTemplates.rows.map((row: any) => ({
+				name: row.name,
+				usage_count: Number(row.usage_count)
+			})),
 		};
 	}
 
