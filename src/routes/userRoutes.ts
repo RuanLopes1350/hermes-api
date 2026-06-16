@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import userController from '../controller/userController.js';
 import { requireAuth } from '../middlewares/requireAuth.js';
+import { authApiRateLimiter } from '../middlewares/rateLimitingMiddleware.js';
 
 const router = Router();
 
 // Rota pública: registro de usuário
-router.post('/users', userController.createUser.bind(userController));
+router.post('/users', authApiRateLimiter, userController.createUser.bind(userController));
 
 // Rotas protegidas por sessão
 // GET /users — lista todos (admin only — a verificação acontece no Service)

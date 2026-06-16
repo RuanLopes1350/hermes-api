@@ -26,3 +26,12 @@ export const templateApiRateLimiter = rateLimit({
 	legacyHeaders: false,
 	validate: false,
 });
+
+export const authApiRateLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000, // 15 minutos
+	max: 10, // limite de 10 requisições
+	message: 'Muitas tentativas de cadastro ou autenticação. Tente novamente mais tarde.',
+	standardHeaders: true,
+	legacyHeaders: false,
+	validate: false,
+});
