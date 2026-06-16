@@ -86,7 +86,7 @@ class EmailRepository {
 	}
 
 	// Lista os e-mails de um serviço, com filtro opcional de status.
-	async findAllByService(serviceId: string, status?: string) {
+	async findAllByService(serviceId: string, status?: string, limit: number = 50, offset: number = 0) {
 		console.log(
 			chalk.magenta(
 				`[${getTimestamp()}] [DB] [EmailRepository] Listando e-mails do serviço: ${serviceId}`,
@@ -103,14 +103,16 @@ class EmailRepository {
 				.select()
 				.from(email)
 				.where(and(...conditions))
-				.orderBy(desc(email.createdAt));
+				.orderBy(desc(email.createdAt))
+				.limit(limit)
+				.offset(offset);
 		} catch (error) {
 			throw parseDatabaseError(error, 'EmailRepository.findAllByService');
 		}
 	}
 
 	// Lista todos os emails globalmente, com nome do serviço, para Admin.
-	async findAllGloballyForAdmin() {
+	async findAllGloballyForAdmin(limit: number = 50, offset: number = 0) {
 		console.log(
 			chalk.magenta(`[${getTimestamp()}] [DB] [EmailRepository] Listando todos os e-mails (Admin)`),
 		);
@@ -123,7 +125,9 @@ class EmailRepository {
 				.from(email)
 				.leftJoin(service, eq(email.service_id, service.id))
 				.where(isNull(email.deletedAt))
-				.orderBy(desc(email.createdAt));
+				.orderBy(desc(email.createdAt))
+				.limit(limit)
+				.offset(offset);
 
 			return rows.map((r) => ({ ...r.email, serviceName: r.serviceName }));
 		} catch (error) {

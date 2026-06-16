@@ -203,7 +203,7 @@ class EmailService {
 		};
 	}
 
-	async listAllEmailsGlobally(currentUser: any) {
+	async listAllEmailsGlobally(currentUser: any, limit: number = 50, offset: number = 0) {
 		if (!currentUser.isAdmin) {
 			throw new EmailDomainError(
 				'Acesso negado. Apenas administradores podem acessar todos os e-mails.',
@@ -211,15 +211,15 @@ class EmailService {
 				'FORBIDDEN',
 			);
 		}
-		return emailRepository.findAllGloballyForAdmin();
+		return emailRepository.findAllGloballyForAdmin(limit, offset);
 	}
 
-	async listEmails(serviceId: string, currentUser: any, status?: string) {
+	async listEmails(serviceId: string, currentUser: any, status?: string, limit: number = 50, offset: number = 0) {
 		const userId = currentUser.id;
 		const serviceExists = await serviceRepository.findServiceAndUserRole(serviceId, userId);
 		if (!serviceExists && !currentUser.isAdmin)
 			throw new EmailDomainError('Serviço não encontrado.', 404, 'NOT_FOUND');
-		return emailRepository.findAllByService(serviceId, status);
+		return emailRepository.findAllByService(serviceId, status, limit, offset);
 	}
 
 	async getEmail(serviceId: string, emailId: string, currentUser: any) {

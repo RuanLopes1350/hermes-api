@@ -53,7 +53,19 @@ class EmailController {
 	async listAll(req: Request, res: Response, next: NextFunction) {
 		console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/emails/all`));
 		try {
-			const emails = await emailService.listAllEmailsGlobally(req.user);
+			let limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 50;
+			if (isNaN(limit) || limit <= 0) {
+				limit = 50;
+			} else {
+				limit = Math.min(limit, 100);
+			}
+
+			let offset = req.query.offset ? parseInt(String(req.query.offset), 10) : 0;
+			if (isNaN(offset) || offset < 0) {
+				offset = 0;
+			}
+
+			const emails = await emailService.listAllEmailsGlobally(req.user, limit, offset);
 			return CommonResponse.success(
 				res,
 				emails,
@@ -71,8 +83,20 @@ class EmailController {
 			chalk.cyan(`[${getTimestamp()}] [GET] /api/services/${req.params.serviceId}/emails`),
 		);
 		try {
+			let limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 50;
+			if (isNaN(limit) || limit <= 0) {
+				limit = 50;
+			} else {
+				limit = Math.min(limit, 100);
+			}
+
+			let offset = req.query.offset ? parseInt(String(req.query.offset), 10) : 0;
+			if (isNaN(offset) || offset < 0) {
+				offset = 0;
+			}
+
 			const status = typeof req.query.status === 'string' ? req.query.status : undefined;
-			const emails = await emailService.listEmails(String(req.params.serviceId), req.user, status);
+			const emails = await emailService.listEmails(String(req.params.serviceId), req.user, status, limit, offset);
 			return CommonResponse.success(res, emails, 200, `${emails.length} e-mail(s) encontrado(s).`);
 		} catch (error) {
 			next(error);
