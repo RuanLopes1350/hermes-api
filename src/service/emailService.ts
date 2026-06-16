@@ -222,6 +222,31 @@ class EmailService {
 		return emailRepository.findAllByService(serviceId, status, limit, offset);
 	}
 
+	async listUserEmails(
+		currentUser: any,
+		limit: number = 50,
+		offset: number = 0,
+		serviceId?: string,
+		status?: string,
+	) {
+		const userId = currentUser.id;
+		if (serviceId) {
+			const serviceExists = await serviceRepository.findServiceAndUserRole(serviceId, userId);
+			if (!serviceExists && !currentUser.isAdmin) {
+				throw new EmailDomainError('Serviço não encontrado.', 404, 'NOT_FOUND');
+			}
+		}
+
+		return emailRepository.findAllByUser(
+			userId,
+			currentUser.isAdmin,
+			limit,
+			offset,
+			serviceId,
+			status,
+		);
+	}
+
 	async getEmail(serviceId: string, emailId: string, currentUser: any) {
 		const userId = currentUser.id;
 		const found = await emailRepository.findById(emailId);

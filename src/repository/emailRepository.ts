@@ -1,5 +1,5 @@
 import { db } from '../config/dbConfig.js';
-import { email, service } from '../config/db/schema.js';
+import { email, service, credential, service_member } from '../config/db/schema.js';
 import { and, eq, isNull, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import chalk from 'chalk';
@@ -108,6 +108,77 @@ class EmailRepository {
 				.offset(offset);
 		} catch (error) {
 			throw parseDatabaseError(error, 'EmailRepository.findAllByService');
+		}
+	}
+
+	async findAllByUser(
+		userId: string,
+		isAdmin: boolean,
+		limit: number = 50,
+		offset: number = 0,
+		serviceId?: string,
+		status?: string,
+	) {
+		console.log(
+			chalk.magenta(
+				`[${getTimestamp()}] [${isAdmin ? 'ADMIN' : 'USER'}] [DB] [EmailRepository] Listando e-mails para o usuário: ${userId}`,
+			),
+		);
+		try {
+			const conditions = [isNull(email.deletedAt)];
+
+			if (serviceId) {
+				conditions.push(eq(email.service_id, serviceId));
+			}
+
+			if (status) {
+				conditions.push(eq(email.status, status as any));
+			}
+
+			if (isAdmin) {
+				const rows = await db
+					.select({
+						email: email,
+						serviceName: service.name,
+						credentialName: credential.name,
+					})
+					.from(email)
+					.leftJoin(service, eq(email.service_id, service.id))
+					.leftJoin(credential, eq(email.credential_id, credential.id))
+					.where(and(...conditions))
+					.orderBy(desc(email.createdAt))
+					.limit(limit)
+					.offset(offset);
+
+				return rows.map((r) => ({
+					...r.email,
+					serviceName: r.serviceName,
+					credentialName: r.credentialName ?? 'N/A',
+				}));
+			} else {
+				const rows = await db
+					.select({
+						email: email,
+						serviceName: service.name,
+						credentialName: credential.name,
+					})
+					.from(email)
+					.leftJoin(service, eq(email.service_id, service.id))
+					.leftJoin(credential, eq(email.credential_id, credential.id))
+					.innerJoin(service_member, eq(email.service_id, service_member.service_id))
+					.where(and(eq(service_member.user_id, userId), ...conditions))
+					.orderBy(desc(email.createdAt))
+					.limit(limit)
+					.offset(offset);
+
+				return rows.map((r) => ({
+					...r.email,
+					serviceName: r.serviceName,
+					credentialName: r.credentialName ?? 'N/A',
+				}));
+			}
+		} catch (error) {
+			throw parseDatabaseError(error, 'EmailRepository.findAllByUser');
 		}
 	}
 

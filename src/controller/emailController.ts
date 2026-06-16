@@ -77,6 +77,43 @@ class EmailController {
 		}
 	}
 
+	// GET /api/emails
+	async listUserEmails(req: Request, res: Response, next: NextFunction) {
+		console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/emails`));
+		try {
+			let limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 50;
+			if (isNaN(limit) || limit <= 0) {
+				limit = 50;
+			} else {
+				limit = Math.min(limit, 100);
+			}
+
+			let offset = req.query.offset ? parseInt(String(req.query.offset), 10) : 0;
+			if (isNaN(offset) || offset < 0) {
+				offset = 0;
+			}
+
+			const serviceId = typeof req.query.serviceId === 'string' ? req.query.serviceId : undefined;
+			const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+
+			const emails = await emailService.listUserEmails(
+				req.user,
+				limit,
+				offset,
+				serviceId,
+				status,
+			);
+			return CommonResponse.success(
+				res,
+				emails,
+				200,
+				`${emails.length} e-mail(s) encontrado(s).`,
+			);
+		} catch (error) {
+			next(error);
+		}
+	}
+
 	// GET /api/services/:serviceId/emails?status=pending
 	async list(req: Request, res: Response, next: NextFunction) {
 		console.log(
