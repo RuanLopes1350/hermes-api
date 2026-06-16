@@ -10,6 +10,7 @@ import { isAPIError } from 'better-auth/api';
 import HttpStatusCode from '../utils/helpers/httpStatusCode.js';
 import { DomainError } from '../utils/helpers/domainError.js';
 import userRepository from '../repository/userRepository.js';
+import { UserType } from '../types/types.js';
 
 // Erro de domínio para o contexto de usuário
 export class UserServiceError extends DomainError {
@@ -73,7 +74,7 @@ class UserService {
 
 	// Lista todos os usuários. Acesso restrito a administradores.
 	//
-	async listUsers(currentUser: any) {
+	async listUsers(currentUser?: UserType) {
 		console.log(chalk.blue.bold(`[${getTimestamp()}] [INFO] [UserService] Listando usuários...`));
 		if (!currentUser?.isAdmin) {
 			throw new UserServiceError(
@@ -88,13 +89,13 @@ class UserService {
 	// Busca um usuário pelo ID.
 	// Um usuário comum só pode acessar seus próprios dados; admins podem acessar qualquer um.
 	//
-	async getUser(targetId: string, currentUser: any) {
+	async getUser(targetId: string, currentUser?: UserType) {
 		console.log(
 			chalk.blue.bold(`[${getTimestamp()}] [INFO] [UserService] Buscando usuário: ${targetId}`),
 		);
 
-		const requesterId = currentUser.id;
-		const requesterIsAdmin = currentUser.isAdmin ?? false;
+		const requesterId = currentUser?.id;
+		const requesterIsAdmin = currentUser?.isAdmin ?? false;
 
 		// Não-admins só podem ver os próprios dados
 		if (!requesterIsAdmin && targetId !== requesterId) {
@@ -119,13 +120,13 @@ class UserService {
 	// Atualiza nome e/ou imagem do usuário.
 	// Email e senha são gerenciados pelo Better Auth.
 	//
-	async updateUser(targetId: string, data: unknown, currentUser: any) {
+	async updateUser(targetId: string, data: unknown, currentUser?: UserType) {
 		console.log(
 			chalk.blue.bold(`[${getTimestamp()}] [INFO] [UserService] Atualizando usuário: ${targetId}`),
 		);
 
-		const requesterId = currentUser.id;
-		const requesterIsAdmin = currentUser.isAdmin ?? false;
+		const requesterId = currentUser?.id;
+		const requesterIsAdmin = currentUser?.isAdmin ?? false;
 
 		if (!requesterIsAdmin && targetId !== requesterId) {
 			throw new UserServiceError(
@@ -160,14 +161,14 @@ class UserService {
 
 	// Atualiza permissões ou status (isAdmin, isActive). Exclusivo para administradores.
 	//
-	async adminUpdateUser(targetId: string, data: unknown, currentUser: any) {
+	async adminUpdateUser(targetId: string, data: unknown, currentUser?: UserType) {
 		console.log(
 			chalk.blue.bold(
 				`[${getTimestamp()}] [INFO] [UserService] Admin atualizando usuário: ${targetId}`,
 			),
 		);
 
-		const requesterIsAdmin = currentUser.isAdmin ?? false;
+		const requesterIsAdmin = currentUser?.isAdmin ?? false;
 
 		if (!requesterIsAdmin) {
 			throw new UserServiceError(
@@ -202,10 +203,18 @@ class UserService {
 
 	// Deleta um usuário. Exclusivo para administradores.
 	//
-	async deleteUser(targetId: string) {
+	async deleteUser(targetId: string, currentUser?: UserType) {
 		console.log(
 			chalk.blue.bold(`[${getTimestamp()}] [INFO] [UserService] Deletando usuário: ${targetId}`),
 		);
+
+		if (!currentUser?.isAdmin) {
+			throw new UserServiceError(
+				'Acesso negado. Apenas administradores podem deletar usuários.',
+				403,
+				'FORBIDDEN',
+			);
+		}
 
 		const deleted = await userRepository.deleteById(targetId);
 		if (!deleted) {

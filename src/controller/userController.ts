@@ -71,7 +71,7 @@ class UserController {
 		const id = String(req.params.id);
 		console.log(chalk.cyan(`[${getTimestamp()}] [DELETE] /api/users/${id}`));
 		try {
-			const result = await userService.deleteUser(id);
+			const result = await userService.deleteUser(id, req.user);
 			return CommonResponse.success(res, result, 200, 'Usuário deletado com sucesso.');
 		} catch (error) {
 			next(error);

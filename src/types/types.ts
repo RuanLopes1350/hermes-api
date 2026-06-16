@@ -8,7 +8,7 @@ export type UserType = {
 	email: string;
 	emailVerified?: boolean;
 	password?: string | null;
-	isAdmin?: boolean;
+	isAdmin?: boolean | null;
 	image?: string | null;
 	createdAt?: Date;
 	updatedAt?: Date;
