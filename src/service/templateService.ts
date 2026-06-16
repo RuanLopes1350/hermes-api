@@ -11,6 +11,7 @@ import HttpStatusCode from '../utils/helpers/httpStatusCode.js';
 import { DomainError } from '../utils/helpers/domainError.js';
 import { renderTemplate } from '../utils/renderTemplate.js';
 import { sanitizeHtml } from '../utils/helpers/sanitizer.js';
+import mjml2html from 'mjml';
 
 // Erro de domínio para templates
 export class TemplateDomainError extends DomainError {
@@ -74,6 +75,16 @@ class TemplateService {
 			}
 		}
 
+		let compiledHtml = parsedData.html_content;
+		if (parsedData.html_content.includes('<mjml>')) {
+			try {
+				const result = await mjml2html(parsedData.html_content, { validationLevel: 'soft' });
+				compiledHtml = result.html;
+			} catch (err: any) {
+				console.error('[TemplateService] Erro ao compilar MJML para AOT:', err);
+			}
+		}
+
 		const newTemplate = await templateRepository.create({
 			name: parsedData.name,
 			serviceId: parsedData.global ? null : serviceId,
@@ -81,6 +92,7 @@ class TemplateService {
 			global: parsedData.global,
 			subjectTemplate: parsedData.subject_template,
 			htmlContent: parsedData.html_content,
+			compiledHtml: compiledHtml,
 			textContent: parsedData.text_content,
 		});
 
@@ -191,10 +203,24 @@ class TemplateService {
 
 		const parsedData = updateTemplateSchema.parse(data);
 
+		let compiledHtml: string | undefined = undefined;
+		if (parsedData.html_content !== undefined) {
+			compiledHtml = parsedData.html_content;
+			if (parsedData.html_content && parsedData.html_content.includes('<mjml>')) {
+				try {
+					const result = await mjml2html(parsedData.html_content, { validationLevel: 'soft' });
+					compiledHtml = result.html;
+				} catch (err: any) {
+					console.error('[TemplateService] Erro ao compilar MJML para AOT:', err);
+				}
+			}
+		}
+
 		const updated = await templateRepository.updateById(templateId, {
 			name: parsedData.name,
 			subject_template: parsedData.subject_template,
 			html_content: parsedData.html_content,
+			compiled_html: compiledHtml,
 			text_content: parsedData.text_content,
 			global: parsedData.global,
 			service_id: parsedData.service_id,

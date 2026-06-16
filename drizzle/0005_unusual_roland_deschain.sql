@@ -1,0 +1,1 @@
+ALTER TABLE "template" ADD COLUMN "compiled_html" text;

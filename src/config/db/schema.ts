@@ -151,6 +151,7 @@ export const template = pgTable('template', {
 	global: boolean('global').notNull().default(false),
 	subject_template: varchar('subject_template'),
 	html_content: text('html_content').notNull(),
+	compiled_html: text('compiled_html'),
 	text_content: text('text_content'),
 	createdAt: timestamp('created_at').notNull().defaultNow(),
 	updatedAt: timestamp('updated_at').notNull().defaultNow(),

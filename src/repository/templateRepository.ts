@@ -14,6 +14,7 @@ class TemplateRepository {
 		creatorId: string;
 		subjectTemplate?: string;
 		htmlContent: string;
+		compiledHtml?: string | null;
 		textContent?: string;
 		global: boolean;
 	}) {
@@ -31,6 +32,7 @@ class TemplateRepository {
 					global: data.global,
 					subject_template: data.subjectTemplate,
 					html_content: data.htmlContent,
+					compiled_html: data.compiledHtml,
 					text_content: data.textContent,
 				})
 				.returning();
@@ -74,6 +76,7 @@ class TemplateRepository {
 					global: template.global,
 					subject_template: template.subject_template,
 					html_content: template.html_content,
+					compiled_html: template.compiled_html,
 					text_content: template.text_content,
 					createdAt: template.createdAt,
 					updatedAt: template.updatedAt,
@@ -129,6 +132,7 @@ class TemplateRepository {
 					global: template.global,
 					subject_template: template.subject_template,
 					html_content: template.html_content,
+					compiled_html: template.compiled_html,
 					text_content: template.text_content,
 				})
 				.from(template)
@@ -158,6 +162,7 @@ class TemplateRepository {
 			name?: string;
 			subject_template?: string | null;
 			html_content?: string;
+			compiled_html?: string | null;
 			text_content?: string | null;
 			global?: boolean;
 			service_id?: string | null;

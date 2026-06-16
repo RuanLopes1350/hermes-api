@@ -109,9 +109,17 @@ async function processEmailJob(job: Job<EmailJobPayload>) {
 	if (mailData.service_template_id) {
 		const tmpl = await templateRepository.findById(mailData.service_template_id);
 		if (tmpl) {
-			if (tmpl.html_content) {
-				const { html } = await renderTemplate(tmpl.html_content, variables || {});
-				finalHtml = html;
+			if (tmpl.compiled_html) {
+				const compileBody = Handlebars.compile(tmpl.compiled_html);
+				finalHtml = compileBody(variables || {});
+			} else if (tmpl.html_content) {
+				if (tmpl.html_content.includes('<mjml>')) {
+					const { html } = await renderTemplate(tmpl.html_content, variables || {});
+					finalHtml = html;
+				} else {
+					const compileBody = Handlebars.compile(tmpl.html_content);
+					finalHtml = compileBody(variables || {});
+				}
 			}
 			if (tmpl.subject_template) {
 				const compileSubject = Handlebars.compile(tmpl.subject_template);

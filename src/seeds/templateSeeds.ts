@@ -1,11 +1,12 @@
 import { db } from '../config/dbConfig.js';
 import { template } from '../config/db/schema.js';
 import { v4 as uuidv4 } from 'uuid';
+import mjml2html from 'mjml';
 
 export async function seedTemplates(users: any[], services: any[]) {
 	const [adminUser, normalUser] = users;
 
-	const templatesToInsert = [
+	const templatesRaw = [
 		// Globais
 		{
 			id: uuidv4(),
@@ -267,6 +268,24 @@ export async function seedTemplates(users: any[], services: any[]) {
 			text_content: 'Seu boleto vence hoje.',
 		},
 	];
+
+	const templatesToInsert = await Promise.all(
+		templatesRaw.map(async (t) => {
+			let compiled_html: string | null = null;
+			if (t.html_content && t.html_content.includes('<mjml>')) {
+				try {
+					const result = await mjml2html(t.html_content, { validationLevel: 'soft' });
+					compiled_html = result.html;
+				} catch (err) {
+					console.error(`Erro ao compilar seed template ${t.name}:`, err);
+				}
+			}
+			return {
+				...t,
+				compiled_html,
+			};
+		})
+	);
 
 	const insertedTemplates = await db.insert(template).values(templatesToInsert).returning();
 	return insertedTemplates;
