@@ -8,6 +8,7 @@ import {
 	jsonb,
 	pgEnum,
 	unique,
+	index,
 } from 'drizzle-orm/pg-core';
 
 // ==================================================================================
@@ -156,29 +157,41 @@ export const template = pgTable('template', {
 	deletedAt: timestamp('deleted_at'),
 });
 
-export const email = pgTable('email', {
-	id: text('id').primaryKey().notNull(),
-	service_id: text('service_id')
-		.notNull()
-		.references(() => service.id, { onDelete: 'cascade' }),
-	credential_id: text('credential_id').references(() => credential.id, { onDelete: 'set null' }),
-	service_template_id: text('service_template_id').references(() => template.id, {
-		onDelete: 'set null',
+export const email = pgTable(
+	'email',
+	{
+		id: text('id').primaryKey().notNull(),
+		service_id: text('service_id')
+			.notNull()
+			.references(() => service.id, { onDelete: 'cascade' }),
+		credential_id: text('credential_id').references(() => credential.id, { onDelete: 'set null' }),
+		service_template_id: text('service_template_id').references(() => template.id, {
+			onDelete: 'set null',
+		}),
+		subject: varchar('subject').notNull(),
+		recipient_to: varchar('recipient_to').notNull(),
+		body: text('body'),
+		variables: jsonb('variables').default('{}'),
+		status: mail_status_enum('status').notNull().default('pending'),
+		priority: priority_enum('priority').notNull().default('medium'),
+		retry_count: integer('retry_count').notNull().default(0),
+		next_retry_at: timestamp('next_retry_at'),
+		scheduled_at: timestamp('scheduled_at'),
+		error_log: text('error_log'),
+		sent_at: timestamp('sent_at'),
+		createdAt: timestamp('created_at').notNull().defaultNow(),
+		deletedAt: timestamp('deleted_at'),
+	},
+	(table) => ({
+		serviceIdIdx: index('email_service_id_idx').on(table.service_id),
+		createdAtIdx: index('email_created_at_idx').on(table.createdAt),
+		serviceStatusDeletedIdx: index('email_srv_status_del_idx').on(
+			table.service_id,
+			table.status,
+			table.deletedAt,
+		),
 	}),
-	subject: varchar('subject').notNull(),
-	recipient_to: varchar('recipient_to').notNull(),
-	body: text('body'),
-	variables: jsonb('variables').default('{}'),
-	status: mail_status_enum('status').notNull().default('pending'),
-	priority: priority_enum('priority').notNull().default('medium'),
-	retry_count: integer('retry_count').notNull().default(0),
-	next_retry_at: timestamp('next_retry_at'),
-	scheduled_at: timestamp('scheduled_at'),
-	error_log: text('error_log'),
-	sent_at: timestamp('sent_at'),
-	createdAt: timestamp('created_at').notNull().defaultNow(),
-	deletedAt: timestamp('deleted_at'),
-});
+);
 
 export const service_log = pgTable('service_log', {
 	id: text('id').primaryKey().notNull(),
