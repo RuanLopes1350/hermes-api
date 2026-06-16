@@ -231,11 +231,26 @@ class CredentialService {
 			);
 		}
 
-		// Use any to bypass TS, but realistically we should adapt the validation schema
-		// updateCredentialSchema needs to allow is_active. Since I might not have changed it yet, I will pass it manually.
-		const updateData: any = { ...data };
-		if (data.passkey) updateData.passkey = encryptPasskey(data.passkey);
-		if (data.clientSecret) updateData.client_secret = encryptPasskey(data.clientSecret);
+		// Validar dados usando o schema
+		const parsedData = updateCredentialSchema.parse(data);
+
+		const updateData: any = {};
+		if (parsedData.name !== undefined) updateData.name = parsedData.name;
+		if (parsedData.login !== undefined) updateData.login = parsedData.login;
+		if (parsedData.smtpHost !== undefined) updateData.smtp_host = parsedData.smtpHost;
+		if (parsedData.smtpPort !== undefined) updateData.smtp_port = parsedData.smtpPort;
+		if (parsedData.smtpSecure !== undefined) updateData.smtp_secure = parsedData.smtpSecure;
+		if (parsedData.is_active !== undefined) updateData.is_active = parsedData.is_active;
+
+		if (parsedData.passkey) {
+			updateData.passkey = encryptPasskey(parsedData.passkey);
+		}
+		if (parsedData.clientSecret) {
+			updateData.client_secret = encryptPasskey(parsedData.clientSecret);
+		}
+		if (parsedData.clientId !== undefined) {
+			updateData.client_id = parsedData.clientId;
+		}
 
 		const updated = await credentialRepository.updateById(credentialId, updateData);
 
