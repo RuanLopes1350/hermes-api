@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import serviceRepository from '../repository/serviceRepository.js';
 import serviceLogRepository from '../repository/serviceLogRepository.js';
-import { createServiceSchema, updateServiceSchema } from '../utils/validation/serviceValidation.js';
+import { createServiceSchema, updateServiceSchema, addMemberSchema } from '../utils/validation/serviceValidation.js';
 import HttpStatusCode from '../utils/helpers/httpStatusCode.js';
 import { DomainError } from '../utils/helpers/domainError.js';
 import { db } from '../config/dbConfig.js';
@@ -185,7 +185,7 @@ class ServiceService {
 		return members;
 	}
 
-	async addMember(serviceId: string, email: string, currentUser: any) {
+	async addMember(serviceId: string, data: unknown, currentUser: any) {
 		const userId = currentUser.id;
 		let access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
 		if (!access && currentUser.isAdmin) access = { service: {} as any, role: 'owner' };
@@ -196,6 +196,10 @@ class ServiceService {
 				403,
 				'FORBIDDEN',
 			);
+
+		// Validar usando Zod
+		const parsed = addMemberSchema.parse(data);
+		const email = parsed.email;
 
 		const [targetUser] = await db.select().from(user).where(eq(user.email, email)).limit(1);
 		if (!targetUser)

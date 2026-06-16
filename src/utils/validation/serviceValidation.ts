@@ -25,3 +25,9 @@ export const updateServiceSchema = z
 
 export type CreateServiceInput = z.infer<typeof createServiceSchema>;
 export type UpdateServiceInput = z.infer<typeof updateServiceSchema>;
+
+export const addMemberSchema = z.object({
+	email: z.string().email('O e-mail informado é inválido.'),
+});
+
+export type AddMemberInput = z.infer<typeof addMemberSchema>;

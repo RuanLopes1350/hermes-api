@@ -83,7 +83,7 @@ class ServiceController {
 	async addMember(req: Request, res: Response, next: NextFunction) {
 		const id = String(req.params.id);
 		try {
-			const result = await serviceService.addMember(id, req.body.email, req.user);
+			const result = await serviceService.addMember(id, req.body, req.user);
 			return CommonResponse.success(res, result, 200, 'Membro adicionado com sucesso.');
 		} catch (error) {
 			next(error);
