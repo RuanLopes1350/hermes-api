@@ -29,7 +29,7 @@ class UserController {
 	async listUsers(req: Request, res: Response, next: NextFunction) {
 		console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/users`));
 		try {
-			const users = await userService.listUsers();
+			const users = await userService.listUsers(req.user);
 			return CommonResponse.success(res, users, 200, `${users.length} usuário(s) encontrado(s).`);
 		} catch (error) {
 			next(error);

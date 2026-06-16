@@ -73,8 +73,15 @@ class UserService {
 
 	// Lista todos os usuários. Acesso restrito a administradores.
 	//
-	async listUsers() {
+	async listUsers(currentUser: any) {
 		console.log(chalk.blue.bold(`[${getTimestamp()}] [INFO] [UserService] Listando usuários...`));
+		if (!currentUser?.isAdmin) {
+			throw new UserServiceError(
+				'Acesso negado. Apenas administradores podem listar todos os usuários.',
+				403,
+				'FORBIDDEN',
+			);
+		}
 		return userRepository.findAll();
 	}
 
