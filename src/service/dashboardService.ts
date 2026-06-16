@@ -16,6 +16,101 @@ export class DashboardDomainError extends DomainError {
 	}
 }
 
+class SSEManager {
+	private clients = new Set<Response>();
+	private timeout: NodeJS.Timeout | null = null;
+	private listenersRegistered = false;
+
+	addClient(res: Response) {
+		this.clients.add(res);
+		this.sendMetricsToClient(res);
+
+		if (!this.listenersRegistered) {
+			this.registerListeners();
+		}
+	}
+
+	removeClient(res: Response) {
+		this.clients.delete(res);
+		if (this.clients.size === 0 && this.listenersRegistered) {
+			this.unregisterListeners();
+		}
+	}
+
+	private async sendMetricsToClient(res: Response) {
+		try {
+			const metrics = await this.fetchMetrics();
+			if (this.clients.has(res)) {
+				res.write(`data: ${JSON.stringify(metrics)}\n\n`);
+			}
+		} catch (err) {
+			console.error('[SSE] Erro ao enviar métricas para o cliente:', err);
+		}
+	}
+
+	private async fetchMetrics() {
+		const [waiting, active, completed, failed, delayed] = await Promise.all([
+			emailQueue.getWaitingCount(),
+			emailQueue.getActiveCount(),
+			emailQueue.getCompletedCount(),
+			emailQueue.getFailedCount(),
+			emailQueue.getDelayedCount(),
+		]);
+		return { waiting, active, completed, failed, delayed };
+	}
+
+	private async broadcastMetrics() {
+		if (this.clients.size === 0) return;
+		try {
+			const metrics = await this.fetchMetrics();
+			const payload = `data: ${JSON.stringify(metrics)}\n\n`;
+			for (const client of this.clients) {
+				try {
+					client.write(payload);
+				} catch (clientErr) {
+					console.error('[SSE] Erro ao enviar broadcast para um cliente específico:', clientErr);
+				}
+			}
+		} catch (err) {
+			console.error('[SSE] Erro no broadcast das métricas:', err);
+		}
+	}
+
+	private debouncedBroadcast = () => {
+		if (this.timeout) return;
+		this.timeout = setTimeout(async () => {
+			await this.broadcastMetrics();
+			this.timeout = null;
+		}, 500);
+	};
+
+	private registerListeners() {
+		globalQueueEvents.on('waiting', this.debouncedBroadcast);
+		globalQueueEvents.on('active', this.debouncedBroadcast);
+		globalQueueEvents.on('completed', this.debouncedBroadcast);
+		globalQueueEvents.on('failed', this.debouncedBroadcast);
+		globalQueueEvents.on('delayed', this.debouncedBroadcast);
+		this.listenersRegistered = true;
+		console.log(chalk.green(`[${getTimestamp()}] [SSE] Listeners globais registrados.`));
+	}
+
+	private unregisterListeners() {
+		globalQueueEvents.off('waiting', this.debouncedBroadcast);
+		globalQueueEvents.off('active', this.debouncedBroadcast);
+		globalQueueEvents.off('completed', this.debouncedBroadcast);
+		globalQueueEvents.off('failed', this.debouncedBroadcast);
+		globalQueueEvents.off('delayed', this.debouncedBroadcast);
+		this.listenersRegistered = false;
+		if (this.timeout) {
+			clearTimeout(this.timeout);
+			this.timeout = null;
+		}
+		console.log(chalk.yellow(`[${getTimestamp()}] [SSE] Listeners globais removidos.`));
+	}
+}
+
+const sseManager = new SSEManager();
+
 class DashboardService {
 	/**
 	 * Estatísticas Globais para o Administrador
@@ -301,53 +396,20 @@ class DashboardService {
 		res.setHeader('Connection', 'keep-alive');
 		res.flushHeaders();
 
-		const sendMetrics = async () => {
-			try {
-				const [waiting, active, completed, failed, delayed] = await Promise.all([
-					emailQueue.getWaitingCount(),
-					emailQueue.getActiveCount(),
-					emailQueue.getCompletedCount(),
-					emailQueue.getFailedCount(),
-					emailQueue.getDelayedCount(),
-				]);
-
-				const payload = { waiting, active, completed, failed, delayed };
-				res.write(`data: ${JSON.stringify(payload)}\n\n`);
-			} catch (err) {
-				console.error('[SSE] Erro ao buscar métricas', err);
-			}
-		};
-
-		sendMetrics();
-
-		let timeout: NodeJS.Timeout | null = null;
-		const debouncedSendMetrics = () => {
-			if (timeout) return;
-			timeout = setTimeout(() => {
-				sendMetrics();
-				timeout = null;
-			}, 500); // Throttling de 500ms para evitar sobrecarga no Redis
-		};
-
-		globalQueueEvents.on('waiting', debouncedSendMetrics);
-		globalQueueEvents.on('active', debouncedSendMetrics);
-		globalQueueEvents.on('completed', debouncedSendMetrics);
-		globalQueueEvents.on('failed', debouncedSendMetrics);
-		globalQueueEvents.on('delayed', debouncedSendMetrics);
+		sseManager.addClient(res);
 
 		const keepAlive = setInterval(() => {
-			res.write(': ping\n\n');
+			try {
+				res.write(': ping\n\n');
+			} catch (err) {
+				// Ignora se o socket já fechou antes do interval limpar
+			}
 		}, 30000);
 
 		req.on('close', () => {
 			console.log(chalk.yellow(`[${getTimestamp()}] [SSE Desconectado]`));
 			clearInterval(keepAlive);
-			if (timeout) clearTimeout(timeout);
-			globalQueueEvents.off('waiting', debouncedSendMetrics);
-			globalQueueEvents.off('active', debouncedSendMetrics);
-			globalQueueEvents.off('completed', debouncedSendMetrics);
-			globalQueueEvents.off('failed', debouncedSendMetrics);
-			globalQueueEvents.off('delayed', debouncedSendMetrics);
+			sseManager.removeClient(res);
 			res.end();
 		});
 	}
