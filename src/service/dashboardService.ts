@@ -1,5 +1,5 @@
 import { db } from '../config/dbConfig.js';
-import { email, user, service, template, service_member } from '../config/db/schema.js';
+import { email, user, service, template, service_member, session, credential } from '../config/db/schema.js';
 import { eq, count, and, isNull, sql, desc } from 'drizzle-orm';
 import { emailQueue } from '../queue/emailQueue.js';
 import chalk from 'chalk';
@@ -115,7 +115,7 @@ class DashboardService {
 	/**
 	 * Estatísticas Globais para o Administrador
 	 */
-	async getAdminStats(currentUser: any) {
+	async getAdminStats(currentUser: any, days: number = 7) {
 		const isAdmin = currentUser?.isAdmin ?? false;
 		if (!isAdmin) {
 			throw new DashboardDomainError(
@@ -144,19 +144,33 @@ class DashboardService {
 			emailQueue.getFailedCount(),
 		]);
 
-		// 3. Volume por dia (Últimos 7 dias)
+		// 3. Today vs Yesterday counts
+		const todayDeltaData = await db.execute(sql`
+			SELECT
+				COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours') as today,
+				COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '48 hours' AND created_at < NOW() - INTERVAL '24 hours') as yesterday
+			FROM email
+			WHERE deleted_at IS NULL
+		`);
+
+		// 4. Active sessions count
+		const activeSessionsData = await db.execute(sql`
+			SELECT COUNT(*) as count FROM session WHERE expires_at > NOW()
+		`);
+
+		// 5. Volume por dia (parametrizado)
 		const volumeByDayData = await db.execute(sql`
-			SELECT 
+			SELECT
 				DATE(created_at) as date,
 				COUNT(*) FILTER (WHERE status = 'sent') as sent,
 				COUNT(*) FILTER (WHERE status = 'failed') as failed
 			FROM email
-			WHERE created_at >= NOW() - INTERVAL '7 days'
+			WHERE created_at >= NOW() - (${days} || ' days')::interval
 			GROUP BY 1
 			ORDER BY 1 ASC
 		`);
 
-		// 4. Distribuição de status
+		// 6. Distribuição de status
 		const statusDistributionData = await db.execute(sql`
 			SELECT status, COUNT(*) as total
 			FROM email
@@ -164,9 +178,9 @@ class DashboardService {
 			GROUP BY status
 		`);
 
-		// 5. Atividade recente (service_log)
+		// 7. Atividade recente (service_log)
 		const recentActivityData = await db.execute(sql`
-			SELECT 
+			SELECT
 				sl.action,
 				sl.description,
 				sl.created_at,
@@ -179,16 +193,24 @@ class DashboardService {
 			LIMIT 10
 		`);
 
-		// 6. Envios recentes melhorado
+		// 8. Envios recentes com retry_count, error_log, sent_at, latency_ms
 		const recentEmailsData = await db.execute(sql`
-			SELECT 
+			SELECT
 				e.id,
 				e.recipient_to as recipient,
 				e.subject,
 				e.status,
 				e.priority,
 				e.created_at,
-				s.name as service_name
+				e.sent_at,
+				e.retry_count,
+				e.error_log,
+				s.name as service_name,
+				CASE
+					WHEN e.sent_at IS NOT NULL
+					THEN EXTRACT(EPOCH FROM (e.sent_at - e.created_at)) * 1000
+					ELSE NULL
+				END as latency_ms
 			FROM email e
 			LEFT JOIN service s ON e.service_id = s.id
 			WHERE e.deleted_at IS NULL
@@ -196,9 +218,9 @@ class DashboardService {
 			LIMIT 10
 		`);
 
-		// 7. Top Serviços por Volume
+		// 9. Top Serviços por Volume
 		const topServicesByVolumeData = await db.execute(sql`
-			SELECT 
+			SELECT
 				s.name,
 				COUNT(e.id) as email_count
 			FROM email e
@@ -209,12 +231,47 @@ class DashboardService {
 			LIMIT 5
 		`);
 
+		// 10. Multi-series volume by service
+		const volumeByServiceData = await db.execute(sql`
+			SELECT
+				s.name as service_name,
+				DATE(e.created_at) as date,
+				COUNT(*) as total
+			FROM email e
+			JOIN service s ON e.service_id = s.id
+			WHERE e.created_at >= NOW() - (${days} || ' days')::interval
+				AND s.deleted_at IS NULL
+				AND e.deleted_at IS NULL
+			GROUP BY s.name, DATE(e.created_at)
+			ORDER BY 2 ASC, 3 DESC
+		`);
+
+		// 11. Top services by failure rate
+		const topServicesByFailureRateData = await db.execute(sql`
+			SELECT
+				s.name,
+				COUNT(*) as total,
+				COUNT(*) FILTER (WHERE e.status = 'failed') as failed,
+				ROUND(
+					COUNT(*) FILTER (WHERE e.status = 'failed')::numeric / NULLIF(COUNT(*), 0) * 100, 1
+				) as failure_rate
+			FROM email e
+			JOIN service s ON e.service_id = s.id
+			WHERE s.deleted_at IS NULL AND e.deleted_at IS NULL
+			GROUP BY s.id, s.name
+			ORDER BY failure_rate DESC
+			LIMIT 5
+		`);
+
 		return {
 			summary: {
 				totalSent: Number(totalEmailsRes[0].value),
 				totalFailed: Number(failedEmailsRes[0].value),
 				totalUsers: Number(totalUsersRes[0].value),
 				totalServices: Number(totalServicesRes[0].value),
+				activeSessions: Number((activeSessionsData.rows[0] as any)?.count || 0),
+				today: Number((todayDeltaData.rows[0] as any)?.today || 0),
+				yesterday: Number((todayDeltaData.rows[0] as any)?.yesterday || 0),
 			},
 			queue: {
 				waiting,
@@ -222,6 +279,11 @@ class DashboardService {
 				failed: queueFailed,
 			},
 			volumeByDay: volumeByDayData.rows,
+			volumeByService: volumeByServiceData.rows.map((row: any) => ({
+				serviceName: row.service_name,
+				date: row.date,
+				total: Number(row.total),
+			})),
 			statusDistribution: statusDistributionData.rows,
 			recentActivity: recentActivityData.rows.map((row: any) => ({
 				action: row.action,
@@ -237,11 +299,21 @@ class DashboardService {
 				status: row.status,
 				priority: row.priority,
 				createdAt: row.created_at,
+				sentAt: row.sent_at,
+				retryCount: Number(row.retry_count || 0),
+				errorLog: row.error_log || null,
+				latencyMs: row.latency_ms ? Number(row.latency_ms) : null,
 				serviceName: row.service_name,
 			})),
 			topServicesByVolume: topServicesByVolumeData.rows.map((row: any) => ({
 				name: row.name,
 				emailCount: Number(row.email_count),
+			})),
+			topServicesByFailureRate: topServicesByFailureRateData.rows.map((row: any) => ({
+				name: row.name,
+				total: Number(row.total),
+				failed: Number(row.failed),
+				failureRate: Number(row.failure_rate),
 			})),
 		};
 	}
@@ -249,7 +321,7 @@ class DashboardService {
 	/**
 	 * Estatísticas Pessoais para o Usuário
 	 */
-	async getUserStats(currentUser: any) {
+	async getUserStats(currentUser: any, days: number = 7) {
 		const userId = currentUser.id;
 
 		console.log(
@@ -259,19 +331,12 @@ class DashboardService {
 		);
 
 		// 1. Resumo Pessoal
-		const [sentRes, pendingRes, servicesRes, templatesRes] = await Promise.all([
+		const [sentRes, servicesRes, templatesRes] = await Promise.all([
 			db
 				.select({ value: count() })
 				.from(email)
 				.innerJoin(service_member, eq(email.service_id, service_member.service_id))
 				.where(and(eq(service_member.user_id, userId), eq(email.status, 'sent'))),
-			db
-				.select({ value: count() })
-				.from(email)
-				.innerJoin(service_member, eq(email.service_id, service_member.service_id))
-				.where(
-					and(eq(service_member.user_id, userId), sql`${email.status} IN ('pending', 'retrying')`),
-				),
 			db
 				.select({ value: count() })
 				.from(service_member)
@@ -284,15 +349,59 @@ class DashboardService {
 				.where(and(eq(service_member.user_id, userId), isNull(template.deletedAt))),
 		]);
 
-		// 2. Volume por dia (Últimos 7 dias)
+		// 1b. Separate status counts (failed, retrying, pending)
+		const statusCountsData = await db.execute(sql`
+			SELECT
+				COUNT(*) FILTER (WHERE e.status = 'failed') as failed_count,
+				COUNT(*) FILTER (WHERE e.status = 'retrying') as retrying_count,
+				COUNT(*) FILTER (WHERE e.status = 'pending') as pending_count
+			FROM email e
+			INNER JOIN service_member sm ON e.service_id = sm.service_id
+			WHERE sm.user_id = ${userId} AND e.deleted_at IS NULL
+		`);
+
+		// 1c. Today vs yesterday
+		const todayDeltaData = await db.execute(sql`
+			SELECT
+				COUNT(*) FILTER (WHERE e.created_at >= NOW() - INTERVAL '24 hours') as today,
+				COUNT(*) FILTER (WHERE e.created_at >= NOW() - INTERVAL '48 hours' AND e.created_at < NOW() - INTERVAL '24 hours') as yesterday
+			FROM email e
+			INNER JOIN service_member sm ON e.service_id = sm.service_id
+			WHERE sm.user_id = ${userId} AND e.deleted_at IS NULL
+		`);
+
+		// 1d. Next scheduled email
+		const nextScheduledData = await db.execute(sql`
+			SELECT MIN(e.scheduled_at) as next_scheduled
+			FROM email e
+			INNER JOIN service_member sm ON e.service_id = sm.service_id
+			WHERE sm.user_id = ${userId}
+				AND e.scheduled_at > NOW()
+				AND e.status = 'pending'
+				AND e.deleted_at IS NULL
+		`);
+
+		// 1e. Inactive credentials alert
+		const inactiveCredentialsData = await db.execute(sql`
+			SELECT s.name as service_name, c.name as cred_name, c.id as cred_id
+			FROM credential c
+			JOIN service s ON c.service_id = s.id
+			JOIN service_member sm ON s.id = sm.service_id
+			WHERE sm.user_id = ${userId}
+				AND c.is_active = false
+				AND c.deleted_at IS NULL
+				AND s.deleted_at IS NULL
+		`);
+
+		// 2. Volume por dia (parametrizado)
 		const volumeByDayData = await db.execute(sql`
-			SELECT 
+			SELECT
 				DATE(e.created_at) as date,
 				COUNT(*) FILTER (WHERE e.status = 'sent') as sent,
 				COUNT(*) FILTER (WHERE e.status = 'failed') as failed
 			FROM email e
 			INNER JOIN service_member sm ON e.service_id = sm.service_id
-			WHERE sm.user_id = ${userId} AND e.created_at >= NOW() - INTERVAL '7 days'
+			WHERE sm.user_id = ${userId} AND e.created_at >= NOW() - (${days} || ' days')::interval
 			GROUP BY 1
 			ORDER BY 1 ASC
 		`);
@@ -323,16 +432,24 @@ class DashboardService {
 			LIMIT 10
 		`);
 
-		// 5. Envios recentes melhorado
+		// 5. Envios recentes com retry_count, error_log, sent_at, latency_ms
 		const recentEmailsData = await db.execute(sql`
-			SELECT 
+			SELECT
 				e.id,
 				e.recipient_to as recipient,
 				e.subject,
 				e.status,
 				e.priority,
 				e.created_at,
-				s.name as service_name
+				e.sent_at,
+				e.retry_count,
+				e.error_log,
+				s.name as service_name,
+				CASE
+					WHEN e.sent_at IS NOT NULL
+					THEN EXTRACT(EPOCH FROM (e.sent_at - e.created_at)) * 1000
+					ELSE NULL
+				END as latency_ms
 			FROM email e
 			INNER JOIN service_member sm ON e.service_id = sm.service_id
 			LEFT JOIN service s ON e.service_id = s.id
@@ -358,10 +475,20 @@ class DashboardService {
 		return {
 			summary: {
 				sent: Number(sentRes[0].value),
-				pending: Number(pendingRes[0].value),
+				failed: Number((statusCountsData.rows[0] as any)?.failed_count || 0),
+				retrying: Number((statusCountsData.rows[0] as any)?.retrying_count || 0),
+				pending: Number((statusCountsData.rows[0] as any)?.pending_count || 0),
 				services: Number(servicesRes[0].value),
 				templates: Number(templatesRes[0].value),
+				today: Number((todayDeltaData.rows[0] as any)?.today || 0),
+				yesterday: Number((todayDeltaData.rows[0] as any)?.yesterday || 0),
 			},
+			nextScheduled: (nextScheduledData.rows[0] as any)?.next_scheduled || null,
+			inactiveCredentials: inactiveCredentialsData.rows.map((row: any) => ({
+				serviceName: row.service_name,
+				credName: row.cred_name,
+				credId: row.cred_id,
+			})),
 			volumeByDay: volumeByDayData.rows,
 			statusDistribution: statusDistributionData.rows,
 			recentActivity: recentActivityData.rows.map((row: any) => ({
@@ -378,6 +505,10 @@ class DashboardService {
 				status: row.status,
 				priority: row.priority,
 				createdAt: row.created_at,
+				sentAt: row.sent_at,
+				retryCount: Number(row.retry_count || 0),
+				errorLog: row.error_log || null,
+				latencyMs: row.latency_ms ? Number(row.latency_ms) : null,
 				serviceName: row.service_name,
 			})),
 			topTemplates: topTemplates.rows.map((row: any) => ({

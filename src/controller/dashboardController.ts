@@ -12,7 +12,8 @@ class DashboardController {
 	async getAdminDashboard(req: Request, res: Response, next: NextFunction) {
 		console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/dashboard/admin`));
 		try {
-			const stats = await dashboardService.getAdminStats(req.user);
+			const days = Math.min(30, Math.max(1, Number(req.query.days) || 7));
+			const stats = await dashboardService.getAdminStats(req.user, days);
 			return CommonResponse.success(res, stats, 200, 'Métricas globais carregadas.');
 		} catch (error) {
 			next(error);
@@ -26,7 +27,8 @@ class DashboardController {
 	async getUserDashboard(req: Request, res: Response, next: NextFunction) {
 		console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/dashboard/user`));
 		try {
-			const stats = await dashboardService.getUserStats(req.user);
+			const days = Math.min(30, Math.max(1, Number(req.query.days) || 7));
+			const stats = await dashboardService.getUserStats(req.user, days);
 			return CommonResponse.success(res, stats, 200, 'Métricas pessoais carregadas.');
 		} catch (error) {
 			next(error);
