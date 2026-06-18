@@ -20,6 +20,13 @@ router.get(
 	templateController.getOneGlobal.bind(templateController),
 );
 
+router.get(
+	'/templates/:id/logs',
+	requireAuth,
+	templateApiRateLimiter,
+	templateController.getLogs.bind(templateController),
+);
+
 router.post(
 	'/templates',
 	requireAuth,

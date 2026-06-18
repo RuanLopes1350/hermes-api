@@ -96,19 +96,8 @@ class EmailController {
 			const serviceId = typeof req.query.serviceId === 'string' ? req.query.serviceId : undefined;
 			const status = typeof req.query.status === 'string' ? req.query.status : undefined;
 
-			const emails = await emailService.listUserEmails(
-				req.user,
-				limit,
-				offset,
-				serviceId,
-				status,
-			);
-			return CommonResponse.success(
-				res,
-				emails,
-				200,
-				`${emails.length} e-mail(s) encontrado(s).`,
-			);
+			const emails = await emailService.listUserEmails(req.user, limit, offset, serviceId, status);
+			return CommonResponse.success(res, emails, 200, `${emails.length} e-mail(s) encontrado(s).`);
 		} catch (error) {
 			next(error);
 		}
@@ -133,7 +122,13 @@ class EmailController {
 			}
 
 			const status = typeof req.query.status === 'string' ? req.query.status : undefined;
-			const emails = await emailService.listEmails(String(req.params.serviceId), req.user, status, limit, offset);
+			const emails = await emailService.listEmails(
+				String(req.params.serviceId),
+				req.user,
+				status,
+				limit,
+				offset,
+			);
 			return CommonResponse.success(res, emails, 200, `${emails.length} e-mail(s) encontrado(s).`);
 		} catch (error) {
 			next(error);

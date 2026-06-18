@@ -2,7 +2,11 @@ import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import serviceRepository from '../repository/serviceRepository.js';
 import serviceLogRepository from '../repository/serviceLogRepository.js';
-import { createServiceSchema, updateServiceSchema, addMemberSchema } from '../utils/validation/serviceValidation.js';
+import {
+	createServiceSchema,
+	updateServiceSchema,
+	addMemberSchema,
+} from '../utils/validation/serviceValidation.js';
 import HttpStatusCode from '../utils/helpers/httpStatusCode.js';
 import { DomainError } from '../utils/helpers/domainError.js';
 import { db } from '../config/dbConfig.js';

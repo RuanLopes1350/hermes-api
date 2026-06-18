@@ -214,7 +214,13 @@ class EmailService {
 		return emailRepository.findAllGloballyForAdmin(limit, offset);
 	}
 
-	async listEmails(serviceId: string, currentUser: any, status?: string, limit: number = 50, offset: number = 0) {
+	async listEmails(
+		serviceId: string,
+		currentUser: any,
+		status?: string,
+		limit: number = 50,
+		offset: number = 0,
+	) {
 		const userId = currentUser.id;
 		const serviceExists = await serviceRepository.findServiceAndUserRole(serviceId, userId);
 		if (!serviceExists && !currentUser.isAdmin)

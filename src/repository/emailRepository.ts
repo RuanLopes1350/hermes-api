@@ -86,7 +86,12 @@ class EmailRepository {
 	}
 
 	// Lista os e-mails de um serviço, com filtro opcional de status.
-	async findAllByService(serviceId: string, status?: string, limit: number = 50, offset: number = 0) {
+	async findAllByService(
+		serviceId: string,
+		status?: string,
+		limit: number = 50,
+		offset: number = 0,
+	) {
 		console.log(
 			chalk.magenta(
 				`[${getTimestamp()}] [DB] [EmailRepository] Listando e-mails do serviço: ${serviceId}`,

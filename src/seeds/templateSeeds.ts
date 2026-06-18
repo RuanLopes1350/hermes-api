@@ -284,7 +284,7 @@ export async function seedTemplates(users: any[], services: any[]) {
 				...t,
 				compiled_html,
 			};
-		})
+		}),
 	);
 
 	const insertedTemplates = await db.insert(template).values(templatesToInsert).returning();

@@ -3,6 +3,7 @@ import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import templateRepository from '../repository/templateRepository.js';
 import serviceRepository from '../repository/serviceRepository.js';
 import serviceLogRepository from '../repository/serviceLogRepository.js';
+import templateLogRepository from '../repository/templateLogRepository.js';
 import {
 	createTemplateSchema,
 	updateTemplateSchema,
@@ -106,6 +107,13 @@ class TemplateService {
 			});
 		}
 
+		await templateLogRepository.insertLog({
+			template_id: newTemplate.id,
+			actor_id: userId,
+			action: 'TEMPLATE_CREATED',
+			description: `Criou o template "${newTemplate.name}"`,
+		});
+
 		console.log(
 			chalk.green.bold(
 				`[${getTimestamp()}] [SUCCESS] [TemplateService] Template criado: ${newTemplate.id}`,
@@ -128,11 +136,16 @@ class TemplateService {
 	}
 
 	async listAllTemplatesByUser(currentUser: any) {
+		if (currentUser.isAdmin) {
+			return templateRepository.findAllForAdmin();
+		}
 		return templateRepository.findAllByUser(currentUser.id);
 	}
 
 	async getTemplateById(templateId: string, currentUser: any) {
-		const found = await templateRepository.findByIdAndUser(templateId, currentUser.id);
+		const found = currentUser.isAdmin
+			? await templateRepository.findById(templateId)
+			: await templateRepository.findByIdAndUser(templateId, currentUser.id);
 		if (!found) {
 			throw new TemplateDomainError(
 				'Template não encontrado.',
@@ -145,7 +158,11 @@ class TemplateService {
 
 	async getTemplate(serviceId: string, templateId: string, currentUser: any) {
 		const userId = currentUser.id;
-		const serviceExists = await serviceRepository.findServiceAndUserRole(serviceId, userId);
+		let serviceExists = await serviceRepository.findServiceAndUserRole(serviceId, userId);
+		if (!serviceExists && currentUser.isAdmin) {
+			serviceExists = true as any; // Bypass admin
+		}
+
 		if (!serviceExists) {
 			throw new TemplateDomainError(
 				'Serviço não encontrado.',
@@ -166,7 +183,8 @@ class TemplateService {
 	}
 
 	// Verifica se o usuário pode gerenciar (editar/deletar) o template.
-	private async ensureOwnership(templateId: string, userId: string) {
+	private async ensureOwnership(templateId: string, currentUser: any) {
+		const userId = currentUser.id;
 		const found = await templateRepository.findById(templateId);
 		if (!found) {
 			throw new TemplateDomainError(
@@ -175,6 +193,8 @@ class TemplateService {
 				'TEMPLATE_NOT_FOUND',
 			);
 		}
+
+		if (currentUser.isAdmin) return found;
 
 		// Se tem service_id, verifica se o usuário é dono do serviço
 		if (found.service_id) {
@@ -199,7 +219,7 @@ class TemplateService {
 		const userId = currentUser.id;
 
 		// Verifica propriedade
-		const found = await this.ensureOwnership(templateId, userId);
+		const found = await this.ensureOwnership(templateId, currentUser);
 
 		const parsedData = updateTemplateSchema.parse(data);
 
@@ -244,12 +264,19 @@ class TemplateService {
 			});
 		}
 
+		await templateLogRepository.insertLog({
+			template_id: templateId,
+			actor_id: userId,
+			action: 'TEMPLATE_UPDATED',
+			description: `Atualizou o template "${updated.name}"`,
+		});
+
 		return updated;
 	}
 
 	async deleteTemplate(templateId: string, currentUser: any) {
 		const userId = currentUser.id;
-		const found = await this.ensureOwnership(templateId, userId);
+		const found = await this.ensureOwnership(templateId, currentUser);
 		const deleted = await templateRepository.softDeleteById(templateId);
 
 		if (found.service_id) {
@@ -262,7 +289,26 @@ class TemplateService {
 			});
 		}
 
+		await templateLogRepository.insertLog({
+			template_id: templateId,
+			actor_id: userId,
+			action: 'TEMPLATE_DELETED',
+			description: `Excluiu o template "${found.name}"`,
+		});
+
 		return { id: deleted!.id };
+	}
+
+	async getTemplateLogs(
+		templateId: string,
+		currentUser: any,
+		limit: number = 50,
+		offset: number = 0,
+	) {
+		// Verifica se o usuário tem acesso a esse template
+		await this.ensureOwnership(templateId, currentUser);
+
+		return templateLogRepository.findLogsByTemplate(templateId, limit, offset);
 	}
 }
 

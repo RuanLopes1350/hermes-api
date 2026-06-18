@@ -1,5 +1,13 @@
 import { db } from '../config/dbConfig.js';
-import { email, user, service, template, service_member, session, credential } from '../config/db/schema.js';
+import {
+	email,
+	user,
+	service,
+	template,
+	service_member,
+	session,
+	credential,
+} from '../config/db/schema.js';
 import { eq, count, and, isNull, sql, desc } from 'drizzle-orm';
 import { emailQueue } from '../queue/emailQueue.js';
 import chalk from 'chalk';

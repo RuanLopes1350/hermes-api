@@ -84,6 +84,23 @@ class TemplateController {
 			next(error);
 		}
 	}
+
+	// GET /api/templates/:id/logs
+	async getLogs(req: Request, res: Response, next: NextFunction) {
+		try {
+			const limit = parseInt(req.query.limit as string) || 50;
+			const offset = parseInt(req.query.offset as string) || 0;
+			const logs = await templateService.getTemplateLogs(
+				String(req.params.id),
+				req.user,
+				limit,
+				offset,
+			);
+			return CommonResponse.success(res, logs, 200, 'Logs do template recuperados com sucesso.');
+		} catch (error) {
+			next(error);
+		}
+	}
 }
 
 export default new TemplateController();

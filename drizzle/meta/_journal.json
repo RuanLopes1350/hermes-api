@@ -43,6 +43,13 @@
       "when": 1781645829496,
       "tag": "0005_unusual_roland_deschain",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781805810985,
+      "tag": "0006_overconfident_triathlon",
+      "breakpoints": true
     }
   ]
 }

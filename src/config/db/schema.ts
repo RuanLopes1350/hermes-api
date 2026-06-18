@@ -205,3 +205,15 @@ export const service_log = pgTable('service_log', {
 	metadata: jsonb('metadata'),
 	createdAt: timestamp('created_at').notNull().defaultNow(),
 });
+
+export const template_log = pgTable('template_log', {
+	id: text('id').primaryKey().notNull(),
+	template_id: text('template_id')
+		.notNull()
+		.references(() => template.id, { onDelete: 'cascade' }),
+	actor_id: text('actor_id').references(() => user.id, { onDelete: 'set null' }),
+	action: varchar('action').notNull(),
+	description: text('description').notNull(),
+	metadata: jsonb('metadata'),
+	createdAt: timestamp('created_at').notNull().defaultNow(),
+});

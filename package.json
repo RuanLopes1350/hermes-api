@@ -35,7 +35,16 @@
     "nodejs",
     "express",
     "email",
-    "transactional"
+    "transactional",
+    "microservice",
+    "mjml",
+    "bullmq",
+    "redis",
+    "oauth2",
+    "smtp",
+    "drizzle",
+    "postgres",
+    "hermes-gateway"
   ],
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^8.5.0",

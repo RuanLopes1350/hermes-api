@@ -59,6 +59,19 @@ class TemplateRepository {
 		}
 	}
 
+	async findAllForAdmin() {
+		console.log(
+			chalk.magenta(
+				`[${getTimestamp()}] [DB] [TemplateRepository] Listando todos os templates (Admin)`,
+			),
+		);
+		try {
+			return await db.select().from(template).where(isNull(template.deletedAt));
+		} catch (error) {
+			throw parseDatabaseError(error, 'TemplateRepository.findAllForAdmin');
+		}
+	}
+
 	// Lista todos os templates acessíveis por um usuário.
 	async findAllByUser(userId: string) {
 		console.log(
