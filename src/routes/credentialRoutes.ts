@@ -29,6 +29,11 @@ router.patch(
 	requireAuth,
 	credentialController.update.bind(credentialController),
 );
+router.post(
+	'/services/:serviceId/credentials/:id/rotate',
+	requireAuth,
+	credentialController.rotate.bind(credentialController),
+);
 router.delete(
 	'/services/:serviceId/credentials/:id',
 	requireAuth,

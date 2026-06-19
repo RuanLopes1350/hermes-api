@@ -220,35 +220,41 @@ class CredentialService {
 	}
 
 	async updateCredential(serviceId: string, credentialId: string, data: any, userId: string) {
-		const cred = await this.getCredential(serviceId, credentialId, userId);
+		console.log(
+			chalk.blue.bold(`[${getTimestamp()}] [INFO] [CredentialService] Atualizando credencial...`),
+		);
+
 		const access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-
-		if (access!.role === 'member' && cred.creator_id !== userId) {
+		if (!access)
 			throw new CredentialDomainError(
-				'Você só pode editar credenciais que você mesmo criou.',
-				403,
-				'FORBIDDEN',
+				'Serviço não encontrado ou você não tem acesso.',
+				404,
+				'SERVICE_NOT_FOUND',
 			);
-		}
 
-		// Validar dados usando o schema
 		const parsedData = updateCredentialSchema.parse(data);
+		const cred = await credentialRepository.findById(credentialId);
 
-		const updateData: any = {};
-		if (parsedData.name !== undefined) updateData.name = parsedData.name;
-		if (parsedData.login !== undefined) updateData.login = parsedData.login;
-		if (parsedData.smtpHost !== undefined) updateData.smtp_host = parsedData.smtpHost;
-		if (parsedData.smtpPort !== undefined) updateData.smtp_port = parsedData.smtpPort;
-		if (parsedData.smtpSecure !== undefined) updateData.smtp_secure = parsedData.smtpSecure;
-		if (parsedData.is_active !== undefined) updateData.is_active = parsedData.is_active;
+		if (!cred || cred.service_id !== serviceId)
+			throw new CredentialDomainError('Credencial não encontrada.', 404, 'NOT_FOUND');
 
-		if (parsedData.passkey) {
+		const updateData: any = {
+			name: parsedData.name,
+			login: parsedData.login,
+			smtp_host: parsedData.smtpHost,
+			smtp_port: parsedData.smtpPort,
+			smtp_secure: parsedData.smtpSecure,
+			is_active: parsedData.isActive,
+		};
+
+		if (parsedData.passkey && cred.auth_type === 'plain') {
 			updateData.passkey = encryptPasskey(parsedData.passkey);
 		}
-		if (parsedData.clientSecret) {
+
+		if (parsedData.clientSecret && cred.auth_type === 'oauth2') {
 			updateData.client_secret = encryptPasskey(parsedData.clientSecret);
 		}
-		if (parsedData.clientId !== undefined) {
+		if (parsedData.clientId && cred.auth_type === 'oauth2') {
 			updateData.client_id = parsedData.clientId;
 		}
 
@@ -258,11 +264,67 @@ class CredentialService {
 			service_id: serviceId,
 			actor_id: userId,
 			action: 'CREDENTIAL_UPDATED',
-			description: `Atualizou a credencial "${cred.name}"`,
-			metadata: { credential_id: credentialId },
+			description: `Atualizou a credencial "${updated?.name}"`,
+			metadata: { credential_id: updated?.id },
 		});
 
 		return updated;
+	}
+
+	async rotateCredential(serviceId: string, credentialId: string, userId: string) {
+		console.log(chalk.blue.bold(`[${getTimestamp()}] [INFO] [CredentialService] Rotacionando credencial manualmente...`));
+		
+		const access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
+		if (!access) throw new CredentialDomainError('Acesso negado.', 403, 'FORBIDDEN');
+
+		const cred = await credentialRepository.findById(credentialId);
+		if (!cred || cred.service_id !== serviceId) throw new CredentialDomainError('Credencial não encontrada.', 404, 'NOT_FOUND');
+
+		const srv = await serviceRepository.findById(serviceId);
+		const settings = srv?.settings as any;
+		const webhookUrl = settings?.notifications?.webhook_url;
+		const webhookSecret = settings?.notifications?.webhook_secret;
+
+		const rawKey = crypto.randomBytes(32).toString('hex');
+		const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
+		const prefix = `HRMS-${rawKey.slice(0, 7)}`;
+		
+		const newExpiry = new Date();
+		newExpiry.setDate(newExpiry.getDate() + 30);
+
+		await credentialRepository.updateById(credentialId, {
+			key_hash: keyHash,
+			prefix: prefix,
+			expiresAt: newExpiry
+		});
+
+		let webhookDispatched = false;
+		if (webhookUrl && webhookSecret) {
+			const payload = {
+				serviceId: cred.service_id,
+				credentialId: cred.id,
+				newApiKey: rawKey,
+				rotatedAt: new Date().toISOString(),
+				expiresAt: newExpiry.toISOString()
+			};
+			try {
+				const { dispatchWebhook } = await import('../utils/webhookDispatcher.js');
+				await dispatchWebhook(webhookUrl, webhookSecret, payload);
+				webhookDispatched = true;
+			} catch (error: any) {
+				console.error('[CredentialService] Falha ao disparar webhook na rotação manual:', error.message);
+			}
+		}
+
+		await serviceLogRepository.insertLog({
+			service_id: serviceId,
+			actor_id: userId,
+			action: 'API_KEY_ROTATED_MANUALLY',
+			description: `A chave da credencial "${cred.name}" foi rotacionada manualmente. Webhook: ${webhookDispatched ? 'Sim' : 'Não'}`,
+			metadata: { credential_id: cred.id, webhookDispatched }
+		});
+
+		return { message: 'Chave rotacionada com sucesso', key: rawKey, webhookDispatched };
 	}
 
 	async deleteCredential(serviceId: string, credentialId: string, userId: string) {

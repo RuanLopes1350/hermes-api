@@ -71,6 +71,7 @@ export type ServiceSettingsType = {
 		alert_on_failure: boolean;
 		alert_email: string | null;
 		webhook_url: string | null;
+		webhook_secret: string | null;
 	};
 	interface: {
 		theme: 'light' | 'dark';

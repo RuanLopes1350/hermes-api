@@ -78,6 +78,18 @@ class CredentialController {
 		}
 	}
 
+	async rotate(req: Request, res: Response, next: NextFunction) {
+		try {
+			const serviceId = String(req.params.serviceId);
+			const id = String(req.params.id);
+			const userId = req.user!.id;
+			const result = await credentialService.rotateCredential(serviceId, id, userId);
+			return CommonResponse.success(res, result, 200, 'Credencial rotacionada com sucesso.');
+		} catch (error) {
+			next(error);
+		}
+	}
+
 	async remove(req: Request, res: Response, next: NextFunction) {
 		try {
 			const serviceId = String(req.params.serviceId);
