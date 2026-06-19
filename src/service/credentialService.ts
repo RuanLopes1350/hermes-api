@@ -244,7 +244,7 @@ class CredentialService {
 			smtp_host: parsedData.smtpHost,
 			smtp_port: parsedData.smtpPort,
 			smtp_secure: parsedData.smtpSecure,
-			is_active: parsedData.isActive,
+			is_active: parsedData.is_active,
 		};
 
 		if (parsedData.passkey && cred.auth_type === 'plain') {
