@@ -133,6 +133,16 @@ export const systemWorker = new Worker(
 					description: `Tentativa de rotação automática falhou ao notificar webhook: ${error.message}. O sistema tentará novamente.`,
 					metadata: { credential_id: credentialId }
 				});
+
+				// === GATILHO DE NOTIFICAÇÃO ===
+				const notificationRepository = (await import('../repository/notificationRepository.js')).default;
+				await notificationRepository.insert({
+					service_id: serviceId,
+					type: 'warning',
+					title: 'Falha na Rotação Automática',
+					message: `A tentativa de rotacionar a chave "${cred.name}" falhou pois o webhook recusou a conexão. Tentaremos novamente em breve.`
+				});
+
 				throw new Error(`Falha no webhook: ${error.message}`);
 			}
 
@@ -153,6 +163,15 @@ export const systemWorker = new Worker(
 				action: 'API_KEY_ROTATED_AUTO',
 				description: `Chave "${cred.name}" rotacionada automaticamente. Validade: +${intervalDays} dias.`,
 				metadata: { credential_id: credentialId, newExpiry }
+			});
+
+			// === GATILHO DE NOTIFICAÇÃO (Sucesso) ===
+			const notificationRepository = (await import('../repository/notificationRepository.js')).default;
+			await notificationRepository.insert({
+				service_id: serviceId,
+				type: 'success',
+				title: 'Chave Rotacionada',
+				message: `A chave "${cred.name}" foi rotacionada automaticamente com sucesso.`
 			});
 
 			console.log(chalk.green(`[${getTimestamp()}] [SYSTEM_WORKER] Chave ${credentialId} rotacionada com sucesso.`));

@@ -217,3 +217,29 @@ export const template_log = pgTable('template_log', {
 	metadata: jsonb('metadata'),
 	createdAt: timestamp('created_at').notNull().defaultNow(),
 });
+
+export const notification_type_enum = pgEnum('notification_type_enum', [
+	'error',
+	'warning',
+	'info',
+	'success',
+]);
+
+export const notification = pgTable(
+	'notification',
+	{
+		id: text('id').primaryKey().notNull(),
+		service_id: text('service_id').references(() => service.id, { onDelete: 'cascade' }),
+		user_id: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
+		type: notification_type_enum('type').notNull().default('info'),
+		title: varchar('title').notNull(),
+		message: text('message').notNull(),
+		is_read: boolean('is_read').notNull().default(false),
+		createdAt: timestamp('created_at').notNull().defaultNow(),
+	},
+	(table) => ({
+		userIdIdx: index('notification_user_id_idx').on(table.user_id),
+		serviceIdIdx: index('notification_service_id_idx').on(table.service_id),
+		isReadIdx: index('notification_is_read_idx').on(table.is_read),
+	})
+);

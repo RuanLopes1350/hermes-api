@@ -50,6 +50,13 @@
       "when": 1781805810985,
       "tag": "0006_overconfident_triathlon",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1782249964383,
+      "tag": "0007_steep_freak",
+      "breakpoints": true
     }
   ]
 }

@@ -3,6 +3,7 @@ import { seedUsers } from './userSeeds.js';
 import { seedServices } from './serviceSeeds.js';
 import { seedTemplates } from './templateSeeds.js';
 import { seedEmails } from './emailSeeds.js';
+import { seedNotifications } from './notificationSeeds.js';
 import chalk from 'chalk';
 import { sql } from 'drizzle-orm';
 
@@ -19,6 +20,7 @@ async function runSeeds() {
 			TRUNCATE TABLE "template" CASCADE;
 			TRUNCATE TABLE "email" CASCADE;
 			TRUNCATE TABLE "credential" CASCADE;
+			TRUNCATE TABLE "notification" CASCADE;
 		`);
 
 		console.log(chalk.blue('Populando usuários...'));
@@ -32,6 +34,9 @@ async function runSeeds() {
 
 		console.log(chalk.blue('Populando e-mails...'));
 		await seedEmails(services, templates);
+
+		console.log(chalk.blue('Populando notificações...'));
+		await seedNotifications(services);
 
 		console.log(chalk.green('Seeds finalizadas com sucesso!'));
 
