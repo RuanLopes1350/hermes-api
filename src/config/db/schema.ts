@@ -23,8 +23,8 @@ export const user = pgTable('user', {
 	isAdmin: boolean('is_admin').notNull().default(false),
 	isActive: boolean('is_active').notNull().default(true),
 	image: text('image'),
-	createdAt: timestamp('created_at').notNull().defaultNow(),
-	updatedAt: timestamp('updated_at').notNull().defaultNow(),
+	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const account = pgTable('account', {
@@ -41,30 +41,30 @@ export const account = pgTable('account', {
 	refreshTokenExpiresAt: timestamp('refresh_token_expires_at'),
 	scope: text('scope'),
 	password: text('password'),
-	createdAt: timestamp('created_at').notNull().defaultNow(),
-	updatedAt: timestamp('updated_at').notNull().defaultNow(),
+	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const session = pgTable('session', {
 	id: text('id').primaryKey().notNull(),
-	expiresAt: timestamp('expires_at').notNull(),
+	expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
 	token: text('token').notNull().unique(),
 	ipAddress: text('ip_address'),
 	userAgent: text('user_agent'),
 	userId: text('user_id')
 		.notNull()
 		.references(() => user.id, { onDelete: 'cascade' }),
-	createdAt: timestamp('created_at').notNull().defaultNow(),
-	updatedAt: timestamp('updated_at').notNull().defaultNow(),
+	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const verification = pgTable('verification', {
 	id: text('id').primaryKey().notNull(),
 	identifier: text('identifier').notNull(),
 	value: text('value').notNull(),
-	expiresAt: timestamp('expires_at').notNull(),
-	createdAt: timestamp('created_at').notNull().defaultNow(),
-	updatedAt: timestamp('updated_at').notNull().defaultNow(),
+	expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 // ==================================================================================
@@ -89,9 +89,9 @@ export const service = pgTable('service', {
 		.notNull()
 		.references(() => user.id, { onDelete: 'cascade' }),
 	settings: jsonb('settings').default('{}'),
-	createdAt: timestamp('created_at').notNull().defaultNow(),
-	updatedAt: timestamp('updated_at').notNull().defaultNow(),
-	deletedAt: timestamp('deleted_at'),
+	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+	deletedAt: timestamp('deleted_at', { withTimezone: true }),
 });
 
 export const service_member_role_enum = pgEnum('service_member_role_enum', ['owner', 'member']);
@@ -107,7 +107,7 @@ export const service_member = pgTable(
 			.notNull()
 			.references(() => user.id, { onDelete: 'cascade' }),
 		role: service_member_role_enum('role').notNull().default('member'),
-		createdAt: timestamp('created_at').notNull().defaultNow(),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 	},
 	(t) => ({
 		unq: unique().on(t.service_id, t.user_id),
@@ -136,9 +136,9 @@ export const credential = pgTable('credential', {
 	creator_id: text('creator_id')
 		.notNull()
 		.references(() => user.id, { onDelete: 'cascade' }),
-	createdAt: timestamp('created_at').notNull().defaultNow(),
-	updatedAt: timestamp('updated_at').notNull().defaultNow(),
-	deletedAt: timestamp('deleted_at'),
+	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+	deletedAt: timestamp('deleted_at', { withTimezone: true }),
 });
 
 export const template = pgTable('template', {
@@ -153,9 +153,9 @@ export const template = pgTable('template', {
 	html_content: text('html_content').notNull(),
 	compiled_html: text('compiled_html'),
 	text_content: text('text_content'),
-	createdAt: timestamp('created_at').notNull().defaultNow(),
-	updatedAt: timestamp('updated_at').notNull().defaultNow(),
-	deletedAt: timestamp('deleted_at'),
+	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+	deletedAt: timestamp('deleted_at', { withTimezone: true }),
 });
 
 export const email = pgTable(
@@ -180,8 +180,8 @@ export const email = pgTable(
 		scheduled_at: timestamp('scheduled_at'),
 		error_log: text('error_log'),
 		sent_at: timestamp('sent_at'),
-		createdAt: timestamp('created_at').notNull().defaultNow(),
-		deletedAt: timestamp('deleted_at'),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		deletedAt: timestamp('deleted_at', { withTimezone: true }),
 	},
 	(table) => ({
 		serviceIdIdx: index('email_service_id_idx').on(table.service_id),
@@ -203,7 +203,7 @@ export const service_log = pgTable('service_log', {
 	action: varchar('action').notNull(),
 	description: text('description').notNull(),
 	metadata: jsonb('metadata'),
-	createdAt: timestamp('created_at').notNull().defaultNow(),
+	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const template_log = pgTable('template_log', {
@@ -215,7 +215,7 @@ export const template_log = pgTable('template_log', {
 	action: varchar('action').notNull(),
 	description: text('description').notNull(),
 	metadata: jsonb('metadata'),
-	createdAt: timestamp('created_at').notNull().defaultNow(),
+	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const notification_type_enum = pgEnum('notification_type_enum', [
@@ -235,11 +235,11 @@ export const notification = pgTable(
 		title: varchar('title').notNull(),
 		message: text('message').notNull(),
 		is_read: boolean('is_read').notNull().default(false),
-		createdAt: timestamp('created_at').notNull().defaultNow(),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 	},
 	(table) => ({
 		userIdIdx: index('notification_user_id_idx').on(table.user_id),
 		serviceIdIdx: index('notification_service_id_idx').on(table.service_id),
 		isReadIdx: index('notification_is_read_idx').on(table.is_read),
-	})
+	}),
 );

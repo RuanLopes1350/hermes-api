@@ -5,6 +5,7 @@ services:
     image: postgres:15
     container_name: hermes_db
     restart: always
+    command: ["postgres", "-c", "timezone=${TZ:-America/Manaus}"]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
