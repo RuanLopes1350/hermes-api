@@ -17,14 +17,17 @@ export interface InsertNotificationData {
 class NotificationRepository {
 	async insert(data: InsertNotificationData) {
 		try {
-			const [newNotif] = await db.insert(notification).values({
-				id: uuidv4(),
-				service_id: data.service_id || null,
-				user_id: data.user_id || null,
-				type: data.type,
-				title: data.title,
-				message: data.message,
-			}).returning();
+			const [newNotif] = await db
+				.insert(notification)
+				.values({
+					id: uuidv4(),
+					service_id: data.service_id || null,
+					user_id: data.user_id || null,
+					type: data.type,
+					title: data.title,
+					message: data.message,
+				})
+				.returning();
 			return newNotif;
 		} catch (error) {
 			console.error(chalk.red(`[Erro ao inserir notificação]: ${error}`));
@@ -34,17 +37,16 @@ class NotificationRepository {
 
 	async findUnreadForUser(userId: string, serviceIds: string[]) {
 		try {
-			const condition = serviceIds.length > 0
-				? and(
-						eq(notification.is_read, false),
-						or(
-							eq(notification.user_id, userId),
-							inArray(notification.service_id, serviceIds)
+			const condition =
+				serviceIds.length > 0
+					? and(
+							eq(notification.is_read, false),
+							or(eq(notification.user_id, userId), inArray(notification.service_id, serviceIds)),
 						)
-				  )
-				: and(eq(notification.is_read, false), eq(notification.user_id, userId));
+					: and(eq(notification.is_read, false), eq(notification.user_id, userId));
 
-			return await db.select()
+			return await db
+				.select()
 				.from(notification)
 				.where(condition)
 				.orderBy(desc(notification.createdAt))
@@ -56,7 +58,8 @@ class NotificationRepository {
 
 	async findAllAdmin(limit: number = 50, offset: number = 0) {
 		try {
-			return await db.select()
+			return await db
+				.select()
 				.from(notification)
 				.orderBy(desc(notification.createdAt))
 				.limit(limit)
@@ -68,7 +71,8 @@ class NotificationRepository {
 
 	async markAsRead(notificationId: string) {
 		try {
-			const [updated] = await db.update(notification)
+			const [updated] = await db
+				.update(notification)
 				.set({ is_read: true })
 				.where(eq(notification.id, notificationId))
 				.returning();
@@ -80,19 +84,15 @@ class NotificationRepository {
 
 	async markAllAsReadForUser(userId: string, serviceIds: string[]) {
 		try {
-			const condition = serviceIds.length > 0
-				? and(
-						eq(notification.is_read, false),
-						or(
-							eq(notification.user_id, userId),
-							inArray(notification.service_id, serviceIds)
+			const condition =
+				serviceIds.length > 0
+					? and(
+							eq(notification.is_read, false),
+							or(eq(notification.user_id, userId), inArray(notification.service_id, serviceIds)),
 						)
-				  )
-				: and(eq(notification.is_read, false), eq(notification.user_id, userId));
+					: and(eq(notification.is_read, false), eq(notification.user_id, userId));
 
-			await db.update(notification)
-				.set({ is_read: true })
-				.where(condition);
+			await db.update(notification).set({ is_read: true }).where(condition);
 		} catch (error) {
 			throw parseDatabaseError(error, 'NotificationRepository.markAllAsReadForUser');
 		}

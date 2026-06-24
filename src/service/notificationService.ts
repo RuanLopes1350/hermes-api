@@ -1,4 +1,6 @@
-import notificationRepository, { InsertNotificationData } from '../repository/notificationRepository.js';
+import notificationRepository, {
+	InsertNotificationData,
+} from '../repository/notificationRepository.js';
 import { DomainError } from '../utils/helpers/domainError.js';
 import userRepository from '../repository/userRepository.js';
 import serviceRepository from '../repository/serviceRepository.js';

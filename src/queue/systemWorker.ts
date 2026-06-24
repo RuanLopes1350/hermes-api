@@ -24,26 +24,29 @@ export const systemWorker = new Worker(
 		// JOB MASTER: Roda à meia-noite e apenas agenda os micro-jobs
 		// ============================================================================
 		if (job.name === 'api-key-rotation') {
-			console.log(chalk.blue(`[${getTimestamp()}] [SYSTEM_MASTER] Verificando chaves para rotação...`));
-			
+			console.log(
+				chalk.blue(`[${getTimestamp()}] [SYSTEM_MASTER] Verificando chaves para rotação...`),
+			);
+
 			const { db } = await import('../config/dbConfig.js');
 			const { credential, service } = await import('../config/db/schema.js');
 			const { eq, and, isNull, isNotNull } = await import('drizzle-orm');
 
 			// JOIN super otimizado para evitar N+1 queries
-			const activeCredentials = await db.select({
-				cred: credential,
-				serviceSettings: service.settings
-			})
-			.from(credential)
-			.innerJoin(service, eq(credential.service_id, service.id))
-			.where(
-				and(
-					eq(credential.is_active, true),
-					isNull(credential.deletedAt),
-					isNotNull(credential.expiresAt)
-				)
-			);
+			const activeCredentials = await db
+				.select({
+					cred: credential,
+					serviceSettings: service.settings,
+				})
+				.from(credential)
+				.innerJoin(service, eq(credential.service_id, service.id))
+				.where(
+					and(
+						eq(credential.is_active, true),
+						isNull(credential.deletedAt),
+						isNotNull(credential.expiresAt),
+					),
+				);
 
 			let queuedCount = 0;
 
@@ -58,24 +61,32 @@ export const systemWorker = new Worker(
 
 				// Pega o Threshold configurado pelo usuário (fallback = 3)
 				const thresholdDays = Number(settings?.security?.rotate_threshold_days) || 3;
-				
+
 				const thresholdDate = new Date();
 				thresholdDate.setDate(thresholdDate.getDate() + thresholdDays);
 
 				// Se a data de expiração da chave for menor que a data limite, enfileira
 				if (row.cred.expiresAt! < thresholdDate) {
-					await systemQueue.add('rotate-single-key', {
-						credentialId: row.cred.id,
-						serviceId: row.cred.service_id
-					}, {
-						// Evita que o mesmo job seja enfileirado duas vezes no mesmo dia acidentalmente
-						jobId: `rotate-${row.cred.id}-${new Date().toISOString().split('T')[0]}`
-					});
+					await systemQueue.add(
+						'rotate-single-key',
+						{
+							credentialId: row.cred.id,
+							serviceId: row.cred.service_id,
+						},
+						{
+							// Evita que o mesmo job seja enfileirado duas vezes no mesmo dia acidentalmente
+							jobId: `rotate-${row.cred.id}-${new Date().toISOString().split('T')[0]}`,
+						},
+					);
 					queuedCount++;
 				}
 			}
 
-			console.log(chalk.green(`[${getTimestamp()}] [SYSTEM_MASTER] Varredura concluída. ${queuedCount} chave(s) agendada(s) para rotação imediata.`));
+			console.log(
+				chalk.green(
+					`[${getTimestamp()}] [SYSTEM_MASTER] Varredura concluída. ${queuedCount} chave(s) agendada(s) para rotação imediata.`,
+				),
+			);
 			return;
 		}
 
@@ -84,7 +95,7 @@ export const systemWorker = new Worker(
 		// ============================================================================
 		if (job.name === 'rotate-single-key') {
 			const { credentialId, serviceId } = job.data;
-			
+
 			const { db } = await import('../config/dbConfig.js');
 			const { credential, service } = await import('../config/db/schema.js');
 			const { eq } = await import('drizzle-orm');
@@ -106,7 +117,7 @@ export const systemWorker = new Worker(
 			const rawKey = crypto.randomBytes(32).toString('hex');
 			const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
 			const prefix = `HRMS-${rawKey.slice(0, 7)}`;
-			
+
 			// 2. Calcula nova validade com base na preferência do usuário
 			const newExpiry = new Date();
 			newExpiry.setDate(newExpiry.getDate() + intervalDays);
@@ -116,14 +127,14 @@ export const systemWorker = new Worker(
 				credentialId: cred.id,
 				newApiKey: rawKey,
 				rotatedAt: new Date().toISOString(),
-				expiresAt: newExpiry.toISOString()
+				expiresAt: newExpiry.toISOString(),
 			};
 
 			// 3. TENTA DISPARAR O WEBHOOK PRIMEIRO!
 			try {
 				await dispatchWebhook(webhookUrl, webhookSecret, payload);
 			} catch (error: any) {
-				// SE FALHAR AQUI, JOGA O ERRO. 
+				// SE FALHAR AQUI, JOGA O ERRO.
 				// O BullMQ vai capturar, agendar um Backoff de 1min/2min e tentar de novo até 3 vezes!
 				// A chave no banco de dados AINDA NÃO FOI alterada, então o usuário não perde o acesso.
 				await serviceLogRepository.insertLog({
@@ -131,28 +142,30 @@ export const systemWorker = new Worker(
 					actor_id: null,
 					action: 'API_KEY_ROTATION_WARNING',
 					description: `Tentativa de rotação automática falhou ao notificar webhook: ${error.message}. O sistema tentará novamente.`,
-					metadata: { credential_id: credentialId }
+					metadata: { credential_id: credentialId },
 				});
 
 				// === GATILHO DE NOTIFICAÇÃO ===
-				const notificationRepository = (await import('../repository/notificationRepository.js')).default;
+				const notificationRepository = (await import('../repository/notificationRepository.js'))
+					.default;
 				await notificationRepository.insert({
 					service_id: serviceId,
 					type: 'warning',
 					title: 'Falha na Rotação Automática',
-					message: `A tentativa de rotacionar a chave "${cred.name}" falhou pois o webhook recusou a conexão. Tentaremos novamente em breve.`
+					message: `A tentativa de rotacionar a chave "${cred.name}" falhou pois o webhook recusou a conexão. Tentaremos novamente em breve.`,
 				});
 
 				throw new Error(`Falha no webhook: ${error.message}`);
 			}
 
 			// 4. Sucesso no Webhook! Cliente já tem a nova chave. Atualizamos o Banco em paz.
-			await db.update(credential)
+			await db
+				.update(credential)
 				.set({
 					key_hash: keyHash,
 					prefix: prefix,
 					expiresAt: newExpiry,
-					updatedAt: new Date()
+					updatedAt: new Date(),
 				})
 				.where(eq(credential.id, credentialId));
 
@@ -162,23 +175,30 @@ export const systemWorker = new Worker(
 				actor_id: null,
 				action: 'API_KEY_ROTATED_AUTO',
 				description: `Chave "${cred.name}" rotacionada automaticamente. Validade: +${intervalDays} dias.`,
-				metadata: { credential_id: credentialId, newExpiry }
+				metadata: { credential_id: credentialId, newExpiry },
 			});
 
 			// === GATILHO DE NOTIFICAÇÃO (Sucesso) ===
-			const notificationRepository = (await import('../repository/notificationRepository.js')).default;
+			const notificationRepository = (await import('../repository/notificationRepository.js'))
+				.default;
 			await notificationRepository.insert({
 				service_id: serviceId,
 				type: 'success',
 				title: 'Chave Rotacionada',
-				message: `A chave "${cred.name}" foi rotacionada automaticamente com sucesso.`
+				message: `A chave "${cred.name}" foi rotacionada automaticamente com sucesso.`,
 			});
 
-			console.log(chalk.green(`[${getTimestamp()}] [SYSTEM_WORKER] Chave ${credentialId} rotacionada com sucesso.`));
+			console.log(
+				chalk.green(
+					`[${getTimestamp()}] [SYSTEM_WORKER] Chave ${credentialId} rotacionada com sucesso.`,
+				),
+			);
 			return;
 		}
 
-		console.log(chalk.gray(`[${getTimestamp()}] [SYSTEM_WORKER] Job ${job.name} concluído (desconhecido).`));
+		console.log(
+			chalk.gray(`[${getTimestamp()}] [SYSTEM_WORKER] Job ${job.name} concluído (desconhecido).`),
+		);
 	},
 	{ connection: redisConfig },
 );

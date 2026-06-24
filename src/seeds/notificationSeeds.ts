@@ -27,7 +27,8 @@ export async function seedNotifications(services: any[]) {
 			service_id: s3.id,
 			type: 'error' as const,
 			title: 'Acesso Negado no Webhook',
-			message: 'O servidor de destino retornou 403 Forbidden durante a tentativa de atualizar a credencial "Chave Produção".',
+			message:
+				'O servidor de destino retornou 403 Forbidden durante a tentativa de atualizar a credencial "Chave Produção".',
 			is_read: false,
 			createdAt: subHours(now, 2),
 		},
@@ -37,7 +38,8 @@ export async function seedNotifications(services: any[]) {
 			service_id: s1.id,
 			type: 'warning' as const,
 			title: 'Chave Próxima da Expiração',
-			message: 'A chave "App Mobile iOS" expirará em 2 dias. A rotação automática está desativada para este serviço.',
+			message:
+				'A chave "App Mobile iOS" expirará em 2 dias. A rotação automática está desativada para este serviço.',
 			is_read: false,
 			createdAt: subHours(now, 5),
 		},

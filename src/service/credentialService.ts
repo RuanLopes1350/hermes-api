@@ -272,13 +272,18 @@ class CredentialService {
 	}
 
 	async rotateCredential(serviceId: string, credentialId: string, userId: string) {
-		console.log(chalk.blue.bold(`[${getTimestamp()}] [INFO] [CredentialService] Rotacionando credencial manualmente...`));
-		
+		console.log(
+			chalk.blue.bold(
+				`[${getTimestamp()}] [INFO] [CredentialService] Rotacionando credencial manualmente...`,
+			),
+		);
+
 		const access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
 		if (!access) throw new CredentialDomainError('Acesso negado.', 403, 'FORBIDDEN');
 
 		const cred = await credentialRepository.findById(credentialId);
-		if (!cred || cred.service_id !== serviceId) throw new CredentialDomainError('Credencial não encontrada.', 404, 'NOT_FOUND');
+		if (!cred || cred.service_id !== serviceId)
+			throw new CredentialDomainError('Credencial não encontrada.', 404, 'NOT_FOUND');
 
 		const srv = await serviceRepository.findById(serviceId);
 		const settings = srv?.settings as any;
@@ -288,14 +293,14 @@ class CredentialService {
 		const rawKey = crypto.randomBytes(32).toString('hex');
 		const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
 		const prefix = `HRMS-${rawKey.slice(0, 7)}`;
-		
+
 		const newExpiry = new Date();
 		newExpiry.setDate(newExpiry.getDate() + 30);
 
 		await credentialRepository.updateById(credentialId, {
 			key_hash: keyHash,
 			prefix: prefix,
-			expiresAt: newExpiry
+			expiresAt: newExpiry,
 		});
 
 		let webhookDispatched = false;
@@ -305,14 +310,17 @@ class CredentialService {
 				credentialId: cred.id,
 				newApiKey: rawKey,
 				rotatedAt: new Date().toISOString(),
-				expiresAt: newExpiry.toISOString()
+				expiresAt: newExpiry.toISOString(),
 			};
 			try {
 				const { dispatchWebhook } = await import('../utils/webhookDispatcher.js');
 				await dispatchWebhook(webhookUrl, webhookSecret, payload);
 				webhookDispatched = true;
 			} catch (error: any) {
-				console.error('[CredentialService] Falha ao disparar webhook na rotação manual:', error.message);
+				console.error(
+					'[CredentialService] Falha ao disparar webhook na rotação manual:',
+					error.message,
+				);
 			}
 		}
 
@@ -321,7 +329,7 @@ class CredentialService {
 			actor_id: userId,
 			action: 'API_KEY_ROTATED_MANUALLY',
 			description: `A chave da credencial "${cred.name}" foi rotacionada manualmente. Webhook: ${webhookDispatched ? 'Sim' : 'Não'}`,
-			metadata: { credential_id: cred.id, webhookDispatched }
+			metadata: { credential_id: cred.id, webhookDispatched },
 		});
 
 		return { message: 'Chave rotacionada com sucesso', key: rawKey, webhookDispatched };
