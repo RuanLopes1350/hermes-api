@@ -14,7 +14,8 @@
 
 **Plataforma profissional e escalável para envio de e-mails transacionais (Gateway de E-mails) com suporte a múltiplos serviços, templates MJML dinâmicos, fila de processamento assíncrono e painel administrativo moderno.**
 
-[📖 Tutorial](TUTORIAL.md) • [🔐 Autenticação](docs/AUTHENTICATION.md) • [📄 Especificação do Projeto](PROJETO.md)
+[📖 Tutorial](TUTORIAL.md) • [🔐 Autenticação](docs/AUTHENTICATION.md) • [📄 Especificação do Projeto](PROJETO.md) <br>
+[Painel Frontend](https://github.com/RuanLopes1350/hermes-front) • [Pacote Client (NPM)](https://github.com/RuanLopes1350/hermes-client)
 
 </div>
 
