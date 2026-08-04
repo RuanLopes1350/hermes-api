@@ -8,15 +8,6 @@ import { and, eq, isNull } from 'drizzle-orm';
 import CommonResponse from '../utils/helpers/commonResponse.js';
 import HttpStatusCode from '../utils/helpers/httpStatusCode.js';
 
-declare global {
-	namespace Express {
-		interface Request {
-			serviceId?: string;
-			credentialId?: string;
-		}
-	}
-}
-
 export async function requireApiKey(req: Request, res: Response, next: NextFunction) {
 	const providedKey = req.headers['x-api-key'] as string;
 

@@ -7,34 +7,6 @@ import HttpStatusCode from '../utils/helpers/httpStatusCode.js';
 // Se você tiver o UserType exportado em algum lugar, pode importar aqui.
 // Caso contrário, a interface abaixo resolve perfeitamente.
 
-// 1. Tipagem Forte: Extende o Request do Express para o TypeScript parar de reclamar
-declare global {
-	namespace Express {
-		interface Request {
-			// Definimos explicitamente os campos que sabemos que o Better Auth devolve
-			user?: {
-				id: string;
-				name: string;
-				email: string;
-				emailVerified: boolean;
-				isAdmin: boolean | null; // Better Auth pode retornar null quando não configurado
-				isActive: boolean | null;
-				image?: string | null;
-				createdAt: Date;
-				updatedAt: Date;
-			};
-			session?: {
-				id: string;
-				expiresAt: Date;
-				token: string;
-				ipAddress?: string | null;
-				userAgent?: string | null;
-				userId: string;
-			};
-		}
-	}
-}
-
 // Tenta resolver sessão usando os headers formatados para o padrão Web
 export async function getSession(req: Request) {
 	return auth.api.getSession({

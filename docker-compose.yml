@@ -26,6 +26,7 @@ services:
       - redisdata:/data
       
   api:
+    profiles: ["prod"]
     build: 
       context: .
       dockerfile: dockerfile
@@ -51,6 +52,7 @@ services:
       - redis
       
   worker:
+    profiles: ["prod"]
     build:
       context: .
       dockerfile: dockerfile
@@ -70,6 +72,7 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
 
   frontend:
+    profiles: ["prod"]
     build:
       context: ../hermes-front
       dockerfile: dockerfile
