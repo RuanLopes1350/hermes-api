@@ -39,4 +39,11 @@ router.delete(
 	emailController.cancel.bind(emailController),
 );
 
+// POST — autenticação por sessão (repetir um e-mail falho - DLQ)
+router.post(
+	'/services/:serviceId/emails/:id/retry',
+	requireAuth,
+	emailController.retry.bind(emailController),
+);
+
 export default router;

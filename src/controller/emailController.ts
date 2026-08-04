@@ -167,7 +167,26 @@ class EmailController {
 				String(req.params.id),
 				req.user,
 			);
-			return CommonResponse.success(res, result, 200, 'E-mail cancelado com sucesso.');
+			return CommonResponse.success(res, result, 200, result.message);
+		} catch (error) {
+			next(error);
+		}
+	}
+
+	// POST /api/services/:serviceId/emails/:id/retry
+	async retry(req: Request, res: Response, next: NextFunction) {
+		console.log(
+			chalk.cyan(
+				`[${getTimestamp()}] [POST] /api/services/${req.params.serviceId}/emails/${req.params.id}/retry`,
+			),
+		);
+		try {
+			const result = await emailService.retryEmail(
+				String(req.params.serviceId),
+				String(req.params.id),
+				req.user,
+			);
+			return CommonResponse.success(res, result, 200, result.message);
 		} catch (error) {
 			next(error);
 		}

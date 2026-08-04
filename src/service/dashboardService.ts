@@ -213,6 +213,7 @@ class DashboardService {
 				e.sent_at,
 				e.retry_count,
 				e.error_log,
+				e.service_id,
 				s.name as service_name,
 				CASE
 					WHEN e.sent_at IS NOT NULL
@@ -310,6 +311,7 @@ class DashboardService {
 				sentAt: row.sent_at,
 				retryCount: Number(row.retry_count || 0),
 				errorLog: row.error_log || null,
+				serviceId: row.service_id,
 				latencyMs: row.latency_ms ? Number(row.latency_ms) : null,
 				serviceName: row.service_name,
 			})),
@@ -452,6 +454,7 @@ class DashboardService {
 				e.sent_at,
 				e.retry_count,
 				e.error_log,
+				e.service_id,
 				s.name as service_name,
 				CASE
 					WHEN e.sent_at IS NOT NULL
@@ -516,6 +519,7 @@ class DashboardService {
 				sentAt: row.sent_at,
 				retryCount: Number(row.retry_count || 0),
 				errorLog: row.error_log || null,
+				serviceId: row.service_id,
 				latencyMs: row.latency_ms ? Number(row.latency_ms) : null,
 				serviceName: row.service_name,
 			})),

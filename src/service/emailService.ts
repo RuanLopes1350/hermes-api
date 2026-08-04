@@ -266,18 +266,101 @@ class EmailService {
 		return found;
 	}
 
-	async cancelEmail(serviceId: string, emailId: string, currentUser: any) {
-		const userId = currentUser.id;
-		const found = await this.getEmail(serviceId, emailId, currentUser);
-		if (found.status !== 'pending') {
+	async cancelEmail(serviceId: string, emailId: string, user: any) {
+		console.log(
+			chalk.blue.bold(
+				`[${getTimestamp()}] [INFO] [EmailService] Cancelando e-mail ${emailId} do serviço: ${serviceId}`,
+			),
+		);
+
+		// 1. Validação de Acesso
+		const service = await serviceRepository.findById(serviceId);
+		if (!service || service.owner_id !== user.id) {
 			throw new EmailDomainError(
-				`Apenas e-mails pendentes podem ser cancelados. Status: ${found.status}`,
-				409,
-				'CONFLICT',
+				'Serviço não encontrado ou acesso negado.',
+				HttpStatusCode.FORBIDDEN.code,
+				'FORBIDDEN',
 			);
 		}
-		const deleted = await emailRepository.softDeleteById(emailId);
-		return { id: deleted.id };
+
+		// 2. Busca e validação do e-mail
+		const existingEmail = await emailRepository.findById(emailId);
+		if (!existingEmail || existingEmail.service_id !== serviceId) {
+			throw new EmailDomainError(
+				'E-mail não encontrado.',
+				HttpStatusCode.NOT_FOUND.code,
+				'NOT_FOUND',
+			);
+		}
+
+		if (existingEmail.status !== 'pending') {
+			throw new EmailDomainError(
+				'Apenas e-mails pendentes podem ser cancelados.',
+				HttpStatusCode.BAD_REQUEST.code,
+				'BAD_REQUEST',
+			);
+		}
+
+		// 3. Deleta (Soft Delete)
+		await emailRepository.softDeleteById(emailId);
+		return { message: 'E-mail cancelado com sucesso.' };
+	}
+
+	/**
+	 * Tenta reenviar (re-enqueue) um e-mail que falhou (DLQ).
+	 */
+	async retryEmail(serviceId: string, emailId: string, user: any) {
+		console.log(
+			chalk.blue.bold(
+				`[${getTimestamp()}] [INFO] [EmailService] Retrying e-mail ${emailId} do serviço: ${serviceId}`,
+			),
+		);
+
+		const service = await serviceRepository.findById(serviceId);
+		if (!service || service.owner_id !== user.id) {
+			throw new EmailDomainError(
+				'Serviço não encontrado ou acesso negado.',
+				HttpStatusCode.FORBIDDEN.code,
+				'FORBIDDEN',
+			);
+		}
+
+		const existingEmail = await emailRepository.findById(emailId);
+		if (!existingEmail || existingEmail.service_id !== serviceId) {
+			throw new EmailDomainError(
+				'E-mail não encontrado.',
+				HttpStatusCode.NOT_FOUND.code,
+				'NOT_FOUND',
+			);
+		}
+
+		if (existingEmail.status !== 'failed') {
+			throw new EmailDomainError(
+				'Apenas e-mails falhos podem ser reprocessados.',
+				HttpStatusCode.BAD_REQUEST.code,
+				'BAD_REQUEST',
+			);
+		}
+
+		await emailRepository.updateStatus(emailId, 'pending', { error_log: null });
+
+		await emailQueue.add(
+			'send-email',
+			{
+				emailId: existingEmail.id,
+				recipient_to: existingEmail.recipient_to,
+				subject: existingEmail.subject,
+				body: existingEmail.body || undefined,
+				credential_id: existingEmail.credential_id || undefined,
+			},
+			{
+				priority: priorityMap[existingEmail.priority || 'normal'],
+				attempts: 3,
+				backoff: { type: 'exponential', delay: 2000 },
+			},
+		);
+
+		return { message: 'E-mail reenfileirado com sucesso!', id: existingEmail.id };
 	}
 }
 
