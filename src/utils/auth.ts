@@ -44,10 +44,10 @@ export const auth = betterAuth({
 	user: {
 		modelName: 'user',
 		additionalFields: {
-			isAdmin: {
-				type: 'boolean',
+			role: {
+				type: 'string',
 				required: false,
-				defaultValue: false,
+				defaultValue: 'user',
 				input: true,
 			},
 			isActive: {

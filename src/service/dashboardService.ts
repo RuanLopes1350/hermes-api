@@ -124,7 +124,7 @@ class DashboardService {
 	 * Estatísticas Globais para o Administrador
 	 */
 	async getAdminStats(currentUser: any, days: number = 7) {
-		const isAdmin = currentUser?.isAdmin ?? false;
+		const isAdmin = currentUser?.role === 'super_admin' || currentUser?.role === 'admin';
 		if (!isAdmin) {
 			throw new DashboardDomainError(
 				'Acesso negado. Esta rota é restrita a administradores.',

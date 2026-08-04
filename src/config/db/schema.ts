@@ -14,13 +14,16 @@ import {
 // ==================================================================================
 // ============================== BETTER-AUTH =======================================
 // ==================================================================================
+
+export const system_role_enum = pgEnum('system_role_enum', ['super_admin', 'admin', 'user']);
+
 export const user = pgTable('user', {
 	id: text('id').primaryKey().notNull(),
 	name: text('name').notNull(),
 	email: text('email').notNull().unique(),
 	emailVerified: boolean('email_verified').notNull().default(false),
 	password: text('password'), // HASH
-	isAdmin: boolean('is_admin').notNull().default(false),
+	role: system_role_enum('role').notNull().default('user'),
 	isActive: boolean('is_active').notNull().default(true),
 	image: text('image'),
 	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

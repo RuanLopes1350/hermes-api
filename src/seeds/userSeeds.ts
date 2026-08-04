@@ -10,67 +10,67 @@ export async function seedUsers() {
 			name: 'Admin Master',
 			email: 'admin@hermes.com',
 			password: 'password123',
-			isAdmin: true,
+			role: 'super_admin',
 		},
 		{
 			name: 'Usuário Comum',
 			email: 'user@hermes.com',
 			password: 'password123',
-			isAdmin: false,
+			role: 'user',
 		},
 		{
 			name: 'Outro Usuário',
 			email: 'outro@hermes.com',
 			password: 'password123',
-			isAdmin: false,
+			role: 'user',
 		},
 		{
 			name: 'Carlos Silva',
 			email: 'carlos.silva@hermes.com',
 			password: 'password123',
-			isAdmin: false,
+			role: 'user',
 		},
 		{
 			name: 'Ana Souza',
 			email: 'ana.souza@hermes.com',
 			password: 'password123',
-			isAdmin: false,
+			role: 'user',
 		},
 		{
 			name: 'Beatriz Costa',
 			email: 'beatriz.costa@hermes.com',
 			password: 'password123',
-			isAdmin: false,
+			role: 'user',
 		},
 		{
 			name: 'Fernanda Santos',
 			email: 'fernanda.santos@hermes.com',
 			password: 'password123',
-			isAdmin: false,
+			role: 'user',
 		},
 		{
 			name: 'Marcos Oliveira',
 			email: 'marcos.oliveira@hermes.com',
 			password: 'password123',
-			isAdmin: false,
+			role: 'user',
 		},
 		{
 			name: 'Rafael Pereira',
 			email: 'rafael.pereira@hermes.com',
 			password: 'password123',
-			isAdmin: false,
+			role: 'user',
 		},
 		{
 			name: 'João Rodrigues',
 			email: 'joao.rodrigues@hermes.com',
 			password: 'password123',
-			isAdmin: false,
+			role: 'user',
 		},
 		{
 			name: 'Juliana Almeida',
 			email: 'juliana.almeida@hermes.com',
 			password: 'password123',
-			isAdmin: false,
+			role: 'user',
 		},
 	];
 
@@ -88,7 +88,7 @@ export async function seedUsers() {
 
 			const updated = await db
 				.update(user)
-				.set({ isAdmin: u.isAdmin, emailVerified: true })
+				.set({ role: u.role, emailVerified: true })
 				.where(eq(user.id, result.user.id))
 				.returning();
 

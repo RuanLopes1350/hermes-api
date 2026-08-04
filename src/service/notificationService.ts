@@ -30,7 +30,7 @@ class NotificationService {
 
 	async getAllForAdmin(userId: string, limit: number = 50, offset: number = 0) {
 		const user = await userRepository.findById(userId);
-		if (!user || !user.isAdmin) {
+		if (!user || user.role !== 'super_admin' && user.role !== 'admin') {
 			throw new NotificationDomainError('Acesso negado. Apenas administradores.', 403, 'FORBIDDEN');
 		}
 

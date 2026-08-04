@@ -204,7 +204,8 @@ class EmailService {
 	}
 
 	async listAllEmailsGlobally(currentUser: any, limit: number = 50, offset: number = 0) {
-		if (!currentUser.isAdmin) {
+		const isAdmin = currentUser.role === 'super_admin' || currentUser.role === 'admin';
+		if (!isAdmin) {
 			throw new EmailDomainError(
 				'Acesso negado. Apenas administradores podem acessar todos os e-mails.',
 				403,
@@ -223,7 +224,8 @@ class EmailService {
 	) {
 		const userId = currentUser.id;
 		const serviceExists = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		if (!serviceExists && !currentUser.isAdmin)
+		const isAdmin = currentUser.role === 'super_admin' || currentUser.role === 'admin';
+		if (!serviceExists && !isAdmin)
 			throw new EmailDomainError('Serviço não encontrado.', 404, 'NOT_FOUND');
 		return emailRepository.findAllByService(serviceId, status, limit, offset);
 	}
@@ -238,14 +240,15 @@ class EmailService {
 		const userId = currentUser.id;
 		if (serviceId) {
 			const serviceExists = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-			if (!serviceExists && !currentUser.isAdmin) {
+			const isAdmin = currentUser.role === 'super_admin' || currentUser.role === 'admin';
+			if (!serviceExists && !isAdmin) {
 				throw new EmailDomainError('Serviço não encontrado.', 404, 'NOT_FOUND');
 			}
 		}
 
 		return emailRepository.findAllByUser(
 			userId,
-			currentUser.isAdmin,
+			currentUser.role === 'super_admin' || currentUser.role === 'admin',
 			limit,
 			offset,
 			serviceId,
@@ -260,7 +263,8 @@ class EmailService {
 			throw new EmailDomainError('E-mail não encontrado.', 404, 'NOT_FOUND');
 
 		const access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		if (!access && !currentUser.isAdmin)
+		const isAdmin = currentUser.role === 'super_admin' || currentUser.role === 'admin';
+		if (!access && !isAdmin)
 			throw new EmailDomainError('Acesso negado.', 403, 'FORBIDDEN');
 
 		return found;

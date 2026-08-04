@@ -76,7 +76,7 @@ class UserService {
 	//
 	async listUsers(currentUser?: UserType) {
 		console.log(chalk.blue.bold(`[${getTimestamp()}] [INFO] [UserService] Listando usuários...`));
-		if (!currentUser?.isAdmin) {
+		if (currentUser?.role !== 'super_admin' && currentUser?.role !== 'admin') {
 			throw new UserServiceError(
 				'Acesso negado. Apenas administradores podem listar todos os usuários.',
 				403,
@@ -95,7 +95,7 @@ class UserService {
 		);
 
 		const requesterId = currentUser?.id;
-		const requesterIsAdmin = currentUser?.isAdmin ?? false;
+		const requesterIsAdmin = currentUser?.role === 'super_admin' || currentUser?.role === 'admin';
 
 		// Não-admins só podem ver os próprios dados
 		if (!requesterIsAdmin && targetId !== requesterId) {
@@ -126,7 +126,7 @@ class UserService {
 		);
 
 		const requesterId = currentUser?.id;
-		const requesterIsAdmin = currentUser?.isAdmin ?? false;
+		const requesterIsAdmin = currentUser?.role === 'super_admin' || currentUser?.role === 'admin';
 
 		if (!requesterIsAdmin && targetId !== requesterId) {
 			throw new UserServiceError(
@@ -159,7 +159,7 @@ class UserService {
 		return updated;
 	}
 
-	// Atualiza permissões ou status (isAdmin, isActive). Exclusivo para administradores.
+	// Atualiza permissões ou status (role, isActive). Exclusivo para administradores.
 	//
 	async adminUpdateUser(targetId: string, data: unknown, currentUser?: UserType) {
 		console.log(
@@ -168,7 +168,7 @@ class UserService {
 			),
 		);
 
-		const requesterIsAdmin = currentUser?.isAdmin ?? false;
+		const requesterIsAdmin = currentUser?.role === 'super_admin' || currentUser?.role === 'admin';
 
 		if (!requesterIsAdmin) {
 			throw new UserServiceError(
@@ -182,7 +182,7 @@ class UserService {
 
 		const cleanedData = Object.fromEntries(
 			Object.entries(parsedData).filter(([, value]) => value !== undefined),
-		) as { isAdmin?: boolean; isActive?: boolean };
+		) as { role?: 'super_admin' | 'admin' | 'user'; isActive?: boolean };
 
 		const updated = await userRepository.updateById(targetId, cleanedData);
 		if (!updated) {
@@ -208,7 +208,7 @@ class UserService {
 			chalk.blue.bold(`[${getTimestamp()}] [INFO] [UserService] Deletando usuário: ${targetId}`),
 		);
 
-		if (!currentUser?.isAdmin) {
+		if (currentUser?.role !== 'super_admin' && currentUser?.role !== 'admin') {
 			throw new UserServiceError(
 				'Acesso negado. Apenas administradores podem deletar usuários.',
 				403,

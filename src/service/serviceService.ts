@@ -53,10 +53,10 @@ class ServiceService {
 		const userId = currentUser.id;
 		console.log(
 			chalk.blue.bold(
-				`[${getTimestamp()}] [INFO] [ServiceService] Listando serviços do usuário: ${userId} (isAdmin: ${currentUser.isAdmin})`,
+				`[${getTimestamp()}] [INFO] [ServiceService] Listando serviços do usuário: ${userId} (isAdmin: ${(currentUser.role === 'super_admin' || currentUser.role === 'admin')})`,
 			),
 		);
-		if (currentUser.isAdmin) {
+		if ((currentUser.role === 'super_admin' || currentUser.role === 'admin')) {
 			return serviceRepository.findAllForAdmin();
 		}
 		return serviceRepository.findAllByUser(userId);
@@ -69,7 +69,7 @@ class ServiceService {
 		);
 
 		const found = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		if (!found && !currentUser.isAdmin) {
+		if (!found && !(currentUser.role === 'super_admin' || currentUser.role === 'admin')) {
 			throw new ServiceDomainError(
 				'Serviço não encontrado ou você não tem permissão para acessá-lo.',
 				HttpStatusCode.NOT_FOUND.code,
@@ -77,7 +77,7 @@ class ServiceService {
 			);
 		}
 
-		if (!found && currentUser.isAdmin) {
+		if (!found && (currentUser.role === 'super_admin' || currentUser.role === 'admin')) {
 			// Busca de forma bruta só para o admin
 			const rawService = await serviceRepository.findById(serviceId);
 			if (!rawService)
@@ -85,7 +85,7 @@ class ServiceService {
 			return { ...rawService, _role: 'owner' };
 		}
 
-		return { ...found!.service, _role: currentUser.isAdmin ? 'owner' : found!.role };
+		return { ...found!.service, _role: (currentUser.role === 'super_admin' || currentUser.role === 'admin') ? 'owner' : found!.role };
 	}
 
 	async updateService(serviceId: string, data: unknown, currentUser: any) {
@@ -97,13 +97,13 @@ class ServiceService {
 		);
 
 		let access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		if (!access && currentUser.isAdmin) {
+		if (!access && (currentUser.role === 'super_admin' || currentUser.role === 'admin')) {
 			access = { service: (await serviceRepository.findById(serviceId)) as any, role: 'owner' };
 		}
 
 		if (!access || !access.service)
 			throw new ServiceDomainError('Serviço não encontrado.', 404, 'SERVICE_NOT_FOUND');
-		if (access.role !== 'owner' && !currentUser.isAdmin) {
+		if (access.role !== 'owner' && !(currentUser.role === 'super_admin' || currentUser.role === 'admin')) {
 			throw new ServiceDomainError(
 				'Apenas o dono do serviço pode alterar suas configurações.',
 				403,
@@ -139,13 +139,13 @@ class ServiceService {
 		);
 
 		let access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		if (!access && currentUser.isAdmin) {
+		if (!access && (currentUser.role === 'super_admin' || currentUser.role === 'admin')) {
 			access = { service: (await serviceRepository.findById(serviceId)) as any, role: 'owner' };
 		}
 
 		if (!access || !access.service)
 			throw new ServiceDomainError('Serviço não encontrado.', 404, 'SERVICE_NOT_FOUND');
-		if (access.role !== 'owner' && !currentUser.isAdmin) {
+		if (access.role !== 'owner' && !(currentUser.role === 'super_admin' || currentUser.role === 'admin')) {
 			throw new ServiceDomainError('Apenas o dono do serviço pode excluí-lo.', 403, 'FORBIDDEN');
 		}
 
@@ -171,7 +171,7 @@ class ServiceService {
 	async listMembers(serviceId: string, currentUser: any) {
 		const userId = currentUser.id;
 		let access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		if (!access && currentUser.isAdmin) access = { service: {} as any, role: 'owner' };
+		if (!access && (currentUser.role === 'super_admin' || currentUser.role === 'admin')) access = { service: {} as any, role: 'owner' };
 
 		if (!access) throw new ServiceDomainError('Acesso negado.', 403, 'FORBIDDEN');
 
@@ -192,9 +192,9 @@ class ServiceService {
 	async addMember(serviceId: string, data: unknown, currentUser: any) {
 		const userId = currentUser.id;
 		let access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		if (!access && currentUser.isAdmin) access = { service: {} as any, role: 'owner' };
+		if (!access && (currentUser.role === 'super_admin' || currentUser.role === 'admin')) access = { service: {} as any, role: 'owner' };
 
-		if (!access || (access.role !== 'owner' && !currentUser.isAdmin))
+		if (!access || (access.role !== 'owner' && !(currentUser.role === 'super_admin' || currentUser.role === 'admin')))
 			throw new ServiceDomainError(
 				'Acesso negado. Apenas o dono pode convidar membros.',
 				403,
@@ -240,9 +240,9 @@ class ServiceService {
 	async removeMember(serviceId: string, targetUserId: string, currentUser: any) {
 		const userId = currentUser.id;
 		let access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		if (!access && currentUser.isAdmin) access = { service: {} as any, role: 'owner' };
+		if (!access && (currentUser.role === 'super_admin' || currentUser.role === 'admin')) access = { service: {} as any, role: 'owner' };
 
-		if (!access || (access.role !== 'owner' && !currentUser.isAdmin))
+		if (!access || (access.role !== 'owner' && !(currentUser.role === 'super_admin' || currentUser.role === 'admin')))
 			throw new ServiceDomainError('Acesso negado.', 403, 'FORBIDDEN');
 		if (targetUserId === userId)
 			throw new ServiceDomainError(
@@ -271,9 +271,9 @@ class ServiceService {
 	async transferOwnership(serviceId: string, newOwnerId: string, currentUser: any) {
 		const userId = currentUser.id;
 		let access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		if (!access && currentUser.isAdmin) access = { service: {} as any, role: 'owner' };
+		if (!access && (currentUser.role === 'super_admin' || currentUser.role === 'admin')) access = { service: {} as any, role: 'owner' };
 
-		if (!access || (access.role !== 'owner' && !currentUser.isAdmin))
+		if (!access || (access.role !== 'owner' && !(currentUser.role === 'super_admin' || currentUser.role === 'admin')))
 			throw new ServiceDomainError('Acesso negado.', 403, 'FORBIDDEN');
 
 		const [targetMember] = await db
@@ -292,7 +292,7 @@ class ServiceService {
 			await tx
 				.update(service_member)
 				.set({ role: 'member' })
-				.where(and(eq(service_member.service_id, serviceId), eq(service_member.user_id, userId)));
+				.where(and(eq(service_member.service_id, serviceId), eq(service_member.role, 'owner')));
 			await tx
 				.update(service_member)
 				.set({ role: 'owner' })
@@ -316,10 +316,10 @@ class ServiceService {
 	async listLogs(serviceId: string, limit: number, offset: number, currentUser: any) {
 		const userId = currentUser.id;
 		let access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		if (!access && currentUser.isAdmin) access = { service: {} as any, role: 'owner' };
+		if (!access && (currentUser.role === 'super_admin' || currentUser.role === 'admin')) access = { service: {} as any, role: 'owner' };
 
 		// Somente o dono ou admin podem ver os logs
-		if (!access || (access.role !== 'owner' && !currentUser.isAdmin)) {
+		if (!access || (access.role !== 'owner' && !(currentUser.role === 'super_admin' || currentUser.role === 'admin'))) {
 			throw new ServiceDomainError(
 				'Acesso negado. Apenas donos e admins podem visualizar o histórico.',
 				403,

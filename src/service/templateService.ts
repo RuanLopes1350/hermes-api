@@ -136,14 +136,14 @@ class TemplateService {
 	}
 
 	async listAllTemplatesByUser(currentUser: any) {
-		if (currentUser.isAdmin) {
+		if ((currentUser.role === 'super_admin' || currentUser.role === 'admin')) {
 			return templateRepository.findAllForAdmin();
 		}
 		return templateRepository.findAllByUser(currentUser.id);
 	}
 
 	async getTemplateById(templateId: string, currentUser: any) {
-		const found = currentUser.isAdmin
+		const found = (currentUser.role === 'super_admin' || currentUser.role === 'admin')
 			? await templateRepository.findById(templateId)
 			: await templateRepository.findByIdAndUser(templateId, currentUser.id);
 		if (!found) {
@@ -159,7 +159,7 @@ class TemplateService {
 	async getTemplate(serviceId: string, templateId: string, currentUser: any) {
 		const userId = currentUser.id;
 		let serviceExists = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		if (!serviceExists && currentUser.isAdmin) {
+		if (!serviceExists && (currentUser.role === 'super_admin' || currentUser.role === 'admin')) {
 			serviceExists = true as any; // Bypass admin
 		}
 
@@ -194,7 +194,7 @@ class TemplateService {
 			);
 		}
 
-		if (currentUser.isAdmin) return found;
+		if ((currentUser.role === 'super_admin' || currentUser.role === 'admin')) return found;
 
 		// Se tem service_id, verifica se o usuário é dono do serviço
 		if (found.service_id) {

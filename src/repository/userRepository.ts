@@ -19,7 +19,7 @@ class UserRepository {
 					name: user.name,
 					email: user.email,
 					emailVerified: user.emailVerified,
-					isAdmin: user.isAdmin,
+					role: user.role,
 					isActive: user.isActive,
 					image: user.image,
 					createdAt: user.createdAt,
@@ -41,7 +41,7 @@ class UserRepository {
 					name: user.name,
 					email: user.email,
 					emailVerified: user.emailVerified,
-					isAdmin: user.isAdmin,
+					role: user.role,
 					isActive: user.isActive,
 					image: user.image,
 					createdAt: user.createdAt,
@@ -56,11 +56,11 @@ class UserRepository {
 		}
 	}
 
-	// Atualiza campos permitidos do usuário (name, image, isAdmin, isActive).
+	// Atualiza campos permitidos do usuário (name, image, role, isActive).
 	// Email e senha são gerenciados pelo Better Auth, não por aqui.
 	async updateById(
 		id: string,
-		data: { name?: string; image?: string; isAdmin?: boolean; isActive?: boolean },
+		data: { name?: string; image?: string; role?: 'super_admin' | 'admin' | 'user'; isActive?: boolean },
 	) {
 		console.log(
 			chalk.magenta(`[${getTimestamp()}] [DB] [UserRepository] Atualizando usuário: ${id}`),
@@ -75,7 +75,7 @@ class UserRepository {
 					name: user.name,
 					email: user.email,
 					emailVerified: user.emailVerified,
-					isAdmin: user.isAdmin,
+					role: user.role,
 					isActive: user.isActive,
 					image: user.image,
 					updatedAt: user.updatedAt,

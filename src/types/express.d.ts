@@ -10,7 +10,7 @@ declare global {
 				name: string;
 				email: string;
 				emailVerified: boolean;
-				isAdmin: boolean | null;
+				role: 'super_admin' | 'admin' | 'user';
 				isActive: boolean | null;
 				image?: string | null;
 				createdAt: Date;

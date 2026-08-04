@@ -24,10 +24,10 @@ export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 
 export const adminUpdateUserSchema = z
 	.object({
-		isAdmin: z.boolean().optional(),
+		role: z.enum(['super_admin', 'admin', 'user']).optional(),
 		isActive: z.boolean().optional(),
 	})
-	.refine((data) => data.isAdmin !== undefined || data.isActive !== undefined, {
-		message: 'Informe ao menos um campo para atualizar: isAdmin ou isActive.',
+	.refine((data) => data.role !== undefined || data.isActive !== undefined, {
+		message: 'Informe ao menos um campo para atualizar: role ou isActive.',
 	});
 export type AdminUpdateUserInput = z.infer<typeof adminUpdateUserSchema>;

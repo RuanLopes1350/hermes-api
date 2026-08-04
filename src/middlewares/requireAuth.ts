@@ -55,7 +55,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 		// 2. Injeta os dados fortemente tipados no request para os Controllers usarem
 		req.user = {
 			...sessionData.user,
-			isAdmin: !!sessionData.user.isAdmin,
+			role: sessionData.user.role,
 			isActive: sessionData.user.isActive !== false,
 		};
 		req.session = sessionData.session;

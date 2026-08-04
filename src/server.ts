@@ -118,7 +118,7 @@ async function createAdminUser() {
 	if (!adminName || !adminEmail || !adminPassword) return;
 	try {
 		await auth.api.signUpEmail({
-			body: { name: adminName, email: adminEmail, password: adminPassword, isAdmin: true },
+			body: { name: adminName, email: adminEmail, password: adminPassword, role: 'super_admin' },
 		});
 		console.log(chalk.green.bold(`[${getTimestamp()}] [SUCCESS] Usuário admin pronto.`));
 	} catch (error) {
