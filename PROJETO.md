@@ -130,7 +130,7 @@ O Hermes destaca-se por fornecer:
 * **RF018 - Editor Monaco com Preview:** O console administrativo deve integrar o Monaco Editor permitindo criar templates MJML com visualização imediata renderizada em iframe.
 
 ### ⚡ Enfileiramento e Processamento (Fila BullMQ)
-* **RF019 - Enfileiramento de E-mails com Prioridade:** A API do Hermes deve aceitar requisições de envio em `/api/services/:serviceId/emails` (via API Key), registrar o e-mail como `pending` e enfileirar o processamento com prioridades (`high`, `medium`, `low`).
+* **RF019 - Enfileiramento de E-mails com Prioridade:** A API do Hermes deve aceitar requisições de envio em `/api/emails` (via API Key), registrar o e-mail como `pending` e enfileirar o processamento com prioridades (`high`, `medium`, `low`). O `serviceId` é inferido automaticamente a partir da API Key.
 * **RF020 - Retentativas Exponenciais Automáticas:** E-mails que falharem no envio devido a erros temporários de conexão SMTP devem ser re-enfileirados automaticamente com incremento exponencial de delay (backoff).
 * **RF021 - Logs Detalhados de Erros SMTP:** Em caso de falha definitiva (após 3 tentativas), o Worker deve registrar o erro SMTP detalhado no registro do e-mail.
 * **RF022 - Agendamento de Envios:** O sistema deve aceitar e processar e-mails com data agendada (`scheduled_at`), liberando-os na fila do Redis somente no momento estipulado.
@@ -262,7 +262,7 @@ O sistema Hermes expõe interações distintas para seus três atores principais
 * **Ator:** Sistema Cliente (Aplicação Integrada)
 * **Pré-condições:** O sistema cliente possui uma API Key válida vinculada a um serviço e a uma credencial de envio ativa.
 * **Fluxo Principal:**
-  1. O cliente faz uma requisição `POST` em `/api/services/:serviceId/emails` com cabeçalho `X-API-Key`.
+  1. O cliente faz uma requisição `POST` em `/api/emails` com cabeçalho `X-API-Key`.
   2. O middleware `requireApiKey` isola o prefixo da chave, localiza a API Key candidata no banco, e valida o segredo completo via Argon2.
   3. Se válido, o sistema valida se a chave pertence ao `:serviceId` solicitado e extrai o `credentialId` vinculado à chave.
   4. O Hermes valida a integridade do JSON enviado (destinatário, assunto, variáveis dinâmicas).
