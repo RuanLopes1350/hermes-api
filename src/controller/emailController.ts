@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import emailService from '../service/emailService.js';
+import streamService from '../service/streamService.js';
 import CommonResponse from '../utils/helpers/commonResponse.js';
 
 class EmailController {
@@ -47,6 +48,33 @@ class EmailController {
 		} catch (error) {
 			next(error);
 		}
+	}
+
+	// GET /api/emails/stream
+	// Endpoint SSE para os clientes do SDK monitorarem envios
+	async stream(req: Request, res: Response) {
+		console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/emails/stream [SSE SDK]`));
+
+		const serviceId = req.serviceId;
+		if (!serviceId) {
+			return res.status(401).json({ error: 'API Key inválida ou não identificada.' });
+		}
+
+		res.setHeader('Content-Type', 'text/event-stream');
+		res.setHeader('Cache-Control', 'no-cache');
+		res.setHeader('Connection', 'keep-alive');
+		res.flushHeaders();
+
+		const channel = `email-status:${serviceId}`;
+		const listener = (message: string) => {
+			res.write(`data: ${message}\n\n`);
+		};
+
+		streamService.emitter.on(channel, listener);
+
+		req.on('close', () => {
+			streamService.emitter.off(channel, listener);
+		});
 	}
 
 	// GET /api/emails/all

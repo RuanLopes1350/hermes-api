@@ -1,6 +1,7 @@
 import { db } from '../config/dbConfig.js';
 import { email, service, credential, service_member } from '../config/db/schema.js';
 import { and, eq, isNull, desc } from 'drizzle-orm';
+import { redisPub } from '../config/redisConfig.js';
 import { v4 as uuidv4 } from 'uuid';
 import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
@@ -260,7 +261,26 @@ class EmailRepository {
 			),
 		);
 		try {
-			const [updated] = await db.update(email).set(data).where(eq(email.id, id)).returning();
+			const [updated] = await db
+				.update(email)
+				.set({
+					...data,
+					updatedAt: new Date(),
+				})
+				.where(eq(email.id, id))
+				.returning();
+
+			if (updated) {
+				redisPub.publish(
+					`email-status:${updated.service_id}`,
+					JSON.stringify({
+						emailId: updated.id,
+						status: updated.status,
+						timestamp: new Date().toISOString(),
+					}),
+				).catch(() => {});
+			}
+
 			return updated ?? null;
 		} catch (error) {
 			throw parseDatabaseError(error, 'EmailRepository.updateStatus');
