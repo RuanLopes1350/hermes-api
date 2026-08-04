@@ -13,6 +13,8 @@ import serviceRepository from '../repository/serviceRepository.js';
 import { decrypt } from '../service/credentialService.js';
 import { renderTemplate } from '../utils/renderTemplate.js';
 
+const transporterCache = new Map<string, nodemailer.Transporter>();
+
 // Handler principal do processamento de emails
 async function processEmailJob(job: Job<EmailJobPayload>) {
 	const { emailId, serviceId, variables } = job.data;
@@ -55,52 +57,65 @@ async function processEmailJob(job: Job<EmailJobPayload>) {
 	if (!credentialData) throw new Error(`Dados da Credencial ${credIdToUse} não encontrados.`);
 
 	// 3. Montar Configuração do Transportador
-	let transporterConfig: any = {};
+	let transporter: nodemailer.Transporter;
 
-	if (credentialData.auth_type === 'oauth2') {
-		console.log(
-			chalk.magenta(
-				`[${getTimestamp()}] [WORKER] OAuth2: Tentando enviar como ${credentialData.login}`,
-			),
-		);
-
-		if (!credentialData.client_secret || !credentialData.refresh_token) {
-			throw new Error('Credenciais OAuth2 incompletas (Client Secret ou Refresh Token ausentes).');
-		}
-
-		const clientSecret = decrypt(credentialData.client_secret);
-		const refreshToken = decrypt(credentialData.refresh_token);
-
-		// Configuração ultra-detalhada para capturar o erro exato
-		transporterConfig = {
-			service: 'gmail',
-			auth: {
-				type: 'OAuth2',
-				user: credentialData.login,
-				clientId: credentialData.client_id,
-				clientSecret: clientSecret,
-				refreshToken: refreshToken,
-			},
-			debug: true,
-			logger: true, // ATIVA LOGS DE PROTOCOLO SMTP NO CONSOLE
-		};
+	if (transporterCache.has(credIdToUse)) {
+		transporter = transporterCache.get(credIdToUse)!;
 	} else {
-		if (!credentialData.passkey) {
-			throw new Error('Passkey SMTP não encontrada para autenticação plain.');
-		}
-		const plainPasskey = decrypt(credentialData.passkey);
-		transporterConfig = {
-			host: credentialData.smtp_host,
-			port: credentialData.smtp_port,
-			secure: credentialData.smtp_secure,
-			auth: {
-				user: credentialData.login,
-				pass: plainPasskey,
-			},
+		let transporterConfig: any = {
+			pool: true,
+			maxConnections: 5,
+			maxMessages: 100,
 		};
-	}
 
-	const transporter = nodemailer.createTransport(transporterConfig);
+		if (credentialData.auth_type === 'oauth2') {
+			console.log(
+				chalk.magenta(
+					`[${getTimestamp()}] [WORKER] OAuth2: Tentando enviar como ${credentialData.login}`,
+				),
+			);
+
+			if (!credentialData.client_secret || !credentialData.refresh_token) {
+				throw new Error('Credenciais OAuth2 incompletas (Client Secret ou Refresh Token ausentes).');
+			}
+
+			const clientSecret = decrypt(credentialData.client_secret);
+			const refreshToken = decrypt(credentialData.refresh_token);
+
+			// Configuração ultra-detalhada para capturar o erro exato
+			transporterConfig = {
+				...transporterConfig,
+				service: 'gmail',
+				auth: {
+					type: 'OAuth2',
+					user: credentialData.login,
+					clientId: credentialData.client_id,
+					clientSecret: clientSecret,
+					refreshToken: refreshToken,
+				},
+				debug: true,
+				logger: true, // ATIVA LOGS DE PROTOCOLO SMTP NO CONSOLE
+			};
+		} else {
+			if (!credentialData.passkey) {
+				throw new Error('Passkey SMTP não encontrada para autenticação plain.');
+			}
+			const plainPasskey = decrypt(credentialData.passkey);
+			transporterConfig = {
+				...transporterConfig,
+				host: credentialData.smtp_host,
+				port: credentialData.smtp_port,
+				secure: credentialData.smtp_secure,
+				auth: {
+					user: credentialData.login,
+					pass: plainPasskey,
+				},
+			};
+		}
+
+		transporter = nodemailer.createTransport(transporterConfig);
+		transporterCache.set(credIdToUse, transporter);
+	}
 
 	// 4. Estruturar Template e Variáveis
 	let finalHtml = mailData.body || '';
