@@ -265,7 +265,6 @@ class EmailRepository {
 				.update(email)
 				.set({
 					...data,
-					updatedAt: new Date(),
 				})
 				.where(eq(email.id, id))
 				.returning();

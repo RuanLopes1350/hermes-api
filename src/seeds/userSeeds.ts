@@ -88,7 +88,7 @@ export async function seedUsers() {
 
 			const updated = await db
 				.update(user)
-				.set({ role: u.role, emailVerified: true })
+				.set({ role: u.role as 'super_admin' | 'admin' | 'user', emailVerified: true })
 				.where(eq(user.id, result.user.id))
 				.returning();
 

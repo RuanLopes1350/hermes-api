@@ -1198,8 +1198,13 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "isAdmin": {
-                    "type": "boolean"
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "super_admin",
+                      "admin",
+                      "user"
+                    ]
                   },
                   "isActive": {
                     "type": "boolean"

@@ -55,14 +55,14 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 		// 2. Injeta os dados fortemente tipados no request para os Controllers usarem
 		req.user = {
 			...sessionData.user,
-			role: sessionData.user.role,
+			role: (sessionData.user.role as 'super_admin' | 'admin' | 'user') ?? 'user',
 			isActive: sessionData.user.isActive !== false,
 		};
 		req.session = sessionData.session;
 
-		if (!req.user.isActive) {
+		if (!req.user!.isActive) {
 			console.warn(
-				chalk.yellow(`[requireAuth] Acesso bloqueado para usuário inativo: ${req.user.email}`),
+				chalk.yellow(`[requireAuth] Acesso bloqueado para usuário inativo: ${req.user!.email}`),
 			);
 			CommonResponse.error(
 				res,

@@ -278,8 +278,9 @@ class EmailService {
 		);
 
 		// 1. Validação de Acesso
-		const service = await serviceRepository.findById(serviceId);
-		if (!service || service.owner_id !== user.id) {
+		const access = await serviceRepository.findServiceAndUserRole(serviceId, user.id);
+		const isAdmin = user.role === 'super_admin' || user.role === 'admin';
+		if (!access && !isAdmin) {
 			throw new EmailDomainError(
 				'Serviço não encontrado ou acesso negado.',
 				HttpStatusCode.FORBIDDEN.code,
@@ -320,8 +321,9 @@ class EmailService {
 			),
 		);
 
-		const service = await serviceRepository.findById(serviceId);
-		if (!service || service.owner_id !== user.id) {
+		const access = await serviceRepository.findServiceAndUserRole(serviceId, user.id);
+		const isAdmin = user.role === 'super_admin' || user.role === 'admin';
+		if (!access && !isAdmin) {
 			throw new EmailDomainError(
 				'Serviço não encontrado ou acesso negado.',
 				HttpStatusCode.FORBIDDEN.code,
@@ -346,16 +348,14 @@ class EmailService {
 			);
 		}
 
-		await emailRepository.updateStatus(emailId, 'pending', { error_log: null });
+		await emailRepository.updateStatus(emailId, { status: 'pending', error_log: null });
 
 		await emailQueue.add(
 			'send-email',
 			{
 				emailId: existingEmail.id,
-				recipient_to: existingEmail.recipient_to,
-				subject: existingEmail.subject,
-				body: existingEmail.body || undefined,
-				credential_id: existingEmail.credential_id || undefined,
+				serviceId: existingEmail.service_id,
+				variables: typeof existingEmail.variables === 'string' ? JSON.parse(existingEmail.variables) : (existingEmail.variables || {}),
 			},
 			{
 				priority: priorityMap[existingEmail.priority || 'normal'],
