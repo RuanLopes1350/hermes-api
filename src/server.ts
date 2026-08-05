@@ -71,7 +71,7 @@ app.use((req, res, next) => {
 		}
 		console.log(
 			`${chalk.gray(`[${getTimestamp()}]`)} [${req.method}] ${req.originalUrl} - ` +
-				`${statusColor(res.statusCode)} ${chalk.gray(`${ms}ms`)}`,
+			`${statusColor(res.statusCode)} ${chalk.gray(`${ms}ms`)}`,
 		);
 	});
 	next();
@@ -127,6 +127,20 @@ async function createAdminUser() {
 	}
 }
 
+async function showLogo() {
+	const logo = `
+                                                                      
+	░██     ░██                                                           
+	░██     ░██                                                           
+	░██     ░██  ░███████  ░██░████ ░█████████████   ░███████   ░███████  
+	░██████████ ░██    ░██ ░███     ░██   ░██   ░██ ░██    ░██ ░██        
+	░██     ░██ ░█████████ ░██      ░██   ░██   ░██ ░█████████  ░███████  
+	░██     ░██ ░██        ░██      ░██   ░██   ░██ ░██               ░██ 
+	░██     ░██  ░███████  ░██      ░██   ░██   ░██  ░███████   ░███████
+                                                                      		`;
+	return console.log(chalk.cyan.bold(logo));
+}
+
 async function startServer() {
 	try {
 		await dbConnect.connect();
@@ -134,6 +148,7 @@ async function startServer() {
 			console.log(chalk.green.bold(`[${getTimestamp()}] [SUCCESS] Hermes API na porta ${PORT}`));
 		});
 		await createAdminUser();
+		await showLogo();
 	} catch (error) {
 		console.error(chalk.red.bold(`[${getTimestamp()}] [ERROR] Falha no boot: ${error}`));
 		process.exit(1);

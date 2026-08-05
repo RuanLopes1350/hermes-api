@@ -6,11 +6,20 @@ import { seedEmails } from './emailSeeds.js';
 import { seedNotifications } from './notificationSeeds.js';
 import chalk from 'chalk';
 import { sql } from 'drizzle-orm';
+import dotenv from 'dotenv';
+
+dotenv.config({ quiet: true });
+
+const environment: string = process.env.NODE_ENV!
 
 async function runSeeds() {
+	if (environment !== 'development') {
+		console.log(chalk.red('Ambiente não é de Desenvolvimento, barrando execução de seeds!'));
+		process.exit(1);
+	}
+
 	console.log(chalk.yellow('Conectando ao banco de dados para rodar as seeds...'));
 	await dbConnect.connect();
-
 	try {
 		console.log(chalk.yellow('Limpando o banco de dados antes do seed...'));
 		// Dropando e recriando para limpar de forma bruta. Em prod não se deve fazer isso.
