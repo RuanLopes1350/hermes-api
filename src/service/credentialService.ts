@@ -300,8 +300,10 @@ class CredentialService {
 			expiresAt: newExpiry,
 		});
 
+		const webhookSkipped = !webhookUrl || !webhookSecret;
 		let webhookDispatched = false;
-		if (webhookUrl && webhookSecret) {
+		let webhookError: string | null = null;
+		if (!webhookSkipped) {
 			const payload = {
 				serviceId: cred.service_id,
 				credentialId: cred.id,
@@ -314,6 +316,9 @@ class CredentialService {
 				await dispatchWebhook(webhookUrl, webhookSecret, payload);
 				webhookDispatched = true;
 			} catch (error: any) {
+				webhookError = error.response?.status
+					? `O endpoint respondeu com status ${error.response.status}.`
+					: error.message || 'Erro desconhecido ao disparar o webhook.';
 				console.error(
 					'[CredentialService] Falha ao disparar webhook na rotação manual:',
 					error.message,
@@ -325,11 +330,17 @@ class CredentialService {
 			service_id: serviceId,
 			actor_id: userId,
 			action: 'API_KEY_ROTATED_MANUALLY',
-			description: `A chave da credencial "${cred.name}" foi rotacionada manualmente. Webhook: ${webhookDispatched ? 'Sim' : 'Não'}`,
-			metadata: { credential_id: cred.id, webhookDispatched },
+			description: `A chave da credencial "${cred.name}" foi rotacionada manualmente. Webhook: ${webhookDispatched ? 'Sim' : webhookSkipped ? 'Não configurado' : `Falhou (${webhookError})`}`,
+			metadata: { credential_id: cred.id, webhookDispatched, webhookSkipped, webhookError },
 		});
 
-		return { message: 'Chave rotacionada com sucesso', key: fullApiKey, webhookDispatched };
+		return {
+			message: 'Chave rotacionada com sucesso',
+			key: fullApiKey,
+			webhookDispatched,
+			webhookSkipped,
+			webhookError,
+		};
 	}
 
 	async deleteCredential(serviceId: string, credentialId: string, userId: string) {
