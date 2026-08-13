@@ -62,7 +62,7 @@ class EmailService {
 		}
 
 		// 4. Persistência
-		const finalPriority = (parsedData as any).priority || defaultPriority;
+		const finalPriority = parsedData.priority || defaultPriority;
 
 		const newEmail = await emailRepository.create({
 			serviceId: serviceId,
@@ -152,7 +152,7 @@ class EmailService {
 
 		// Preparar array para inserção no banco
 		const dbPayload = parsedDataArray.map((parsedData) => {
-			const finalPriority = (parsedData as any).priority || defaultPriority;
+			const finalPriority = parsedData.priority || defaultPriority;
 			return {
 				serviceId: serviceId,
 				credentialId: apiKeyCredentialId,

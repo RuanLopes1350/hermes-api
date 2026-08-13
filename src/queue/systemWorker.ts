@@ -99,7 +99,7 @@ export const systemWorker = new Worker(
 			const { db } = await import('../config/dbConfig.js');
 			const { credential, service } = await import('../config/db/schema.js');
 			const { eq } = await import('drizzle-orm');
-			const crypto = await import('node:crypto');
+			const { generateSecureApiKey } = await import('../utils/apiKeyGenerate.js');
 			const { dispatchWebhook } = await import('../utils/webhookDispatcher.js');
 			const serviceLogRepository = (await import('../repository/serviceLogRepository.js')).default;
 
@@ -113,10 +113,8 @@ export const systemWorker = new Worker(
 			const webhookSecret = settings?.notifications?.webhook_secret;
 			const intervalDays = Number(settings?.security?.rotation_interval_days) || 30;
 
-			// 1. Gera Nova Chave
-			const rawKey = crypto.randomBytes(32).toString('hex');
-			const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
-			const prefix = `HRMS-${rawKey.slice(0, 7)}`;
+			// 1. Gera Nova Chave (formato hm_[prefixo].[segredo], hash Argon2id)
+			const { fullApiKey, keyHash, prefix } = await generateSecureApiKey();
 
 			// 2. Calcula nova validade com base na preferência do usuário
 			const newExpiry = new Date();
@@ -125,7 +123,7 @@ export const systemWorker = new Worker(
 			const payload = {
 				serviceId: cred.service_id,
 				credentialId: cred.id,
-				newApiKey: rawKey,
+				newApiKey: fullApiKey,
 				rotatedAt: new Date().toISOString(),
 				expiresAt: newExpiry.toISOString(),
 			};

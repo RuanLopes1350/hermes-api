@@ -21,6 +21,8 @@ export const createEmailSchema = z
 			.optional(),
 		// Variáveis dinâmicas para mesclagem em Templates Handlebars
 		variables: z.record(z.string(), z.any()).optional(),
+		// Prioridade de processamento na fila (high/medium/low) — se omitida, usa o padrão do serviço
+		priority: z.enum(['high', 'medium', 'low']).optional(),
 	})
 	.refine((data) => data.body !== undefined || data.template_id !== undefined, {
 		message: "Informe ao menos um de: 'body' (conteúdo direto) ou 'template_id' (template).",

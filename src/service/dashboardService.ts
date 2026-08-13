@@ -319,7 +319,7 @@ class DashboardService {
 				name: row.name,
 				emailCount: Number(row.email_count),
 			})),
-			topServicesByFailureRate: topServicesByFailureRateData.rows.map((row: any) => ({
+			topServicesByFailures: topServicesByFailureRateData.rows.map((row: any) => ({
 				name: row.name,
 				total: Number(row.total),
 				failed: Number(row.failed),

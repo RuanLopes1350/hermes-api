@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import crypto from 'node:crypto';
+import argon2 from 'argon2';
 import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import { db } from '../config/dbConfig.js';
@@ -24,26 +24,47 @@ export async function requireApiKey(req: Request, res: Response, next: NextFunct
 	}
 
 	try {
-		// Calcula o SHA256 da chave fornecida
-		const hash = crypto.createHash('sha256').update(providedKey).digest('hex');
+		// Extrai o prefixo público (parte antes do primeiro ".") para indexação rápida.
+		// Formato esperado: hm_[prefixo].[segredo]
+		const prefix = providedKey.split('.')[0];
 
-		// Busca a credencial pelo hash da chave
-		const [validCred] = await db
+		if (!prefix) {
+			return CommonResponse.error(
+				res,
+				HttpStatusCode.UNAUTHORIZED.code,
+				'INVALID_API_KEY',
+				null,
+				[],
+				'API Key inválida ou revogada.',
+			);
+		}
+
+		// Busca as credenciais candidatas pelo prefixo (rápido, indexado)
+		const candidates = await db
 			.select({
 				id: credential.id,
 				serviceId: credential.service_id,
 				isActive: credential.is_active,
 				expiresAt: credential.expiresAt,
+				keyHash: credential.key_hash,
 			})
 			.from(credential)
 			.where(
 				and(
-					eq(credential.key_hash, hash),
+					eq(credential.prefix, prefix),
 					eq(credential.is_active, true),
 					isNull(credential.deletedAt),
 				),
-			)
-			.limit(1);
+			);
+
+		// Valida o segredo completo via Argon2 apenas para as candidatas encontradas
+		let validCred: (typeof candidates)[number] | undefined;
+		for (const candidate of candidates) {
+			if (await argon2.verify(candidate.keyHash, providedKey)) {
+				validCred = candidate;
+				break;
+			}
+		}
 
 		if (!validCred) {
 			return CommonResponse.error(

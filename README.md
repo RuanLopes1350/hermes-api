@@ -159,9 +159,8 @@ hermes/
 │   │   ├── config/             # Configurações do Banco (Drizzle/Postgres) e Redis
 │   │   ├── controller/         # Controladores das rotas Express
 │   │   ├── docs/               # Documentação Swagger (gerada via npm run docs:generate)
-│   │   ├── jobs/               # Cronjobs e rotinas agendadas (Key Rotation)
 │   │   ├── middlewares/        # Validação de API Keys, rate limits e erros
-│   │   ├── queue/              # Configuração de Filas e Workers do BullMQ
+│   │   ├── queue/              # Filas e Workers do BullMQ (envio de e-mails e rotação de chaves)
 │   │   ├── repository/         # Queries SQL estruturadas (Drizzle)
 │   │   ├── routes/             # Endpoints da aplicação
 │   │   ├── seeds/              # Seeds para o banco de dados

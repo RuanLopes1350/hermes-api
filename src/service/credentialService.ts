@@ -10,6 +10,7 @@ import {
 } from '../utils/validation/credentialValidation.js';
 import { DomainError } from '../utils/helpers/domainError.js';
 import { getAuthUrl, getTokensFromCode } from '../utils/googleAuth.js';
+import { generateSecureApiKey } from '../utils/apiKeyGenerate.js';
 
 export class CredentialDomainError extends DomainError {
 	constructor(message: string, statusCode: number, errorCode: string) {
@@ -70,10 +71,8 @@ class CredentialService {
 
 		const parsedData = createCredentialSchema.parse(data);
 
-		// Gerar chave de API
-		const rawKey = crypto.randomBytes(32).toString('hex');
-		const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
-		const prefix = `HRMS-${rawKey.slice(0, 7)}`;
+		// Gerar chave de API (formato hm_[prefixo].[segredo], hash Argon2id)
+		const { fullApiKey, keyHash, prefix } = await generateSecureApiKey();
 
 		let newCredential;
 
@@ -131,7 +130,7 @@ class CredentialService {
 
 		return {
 			credential: newCredential,
-			key: rawKey,
+			key: fullApiKey,
 		};
 	}
 
@@ -290,9 +289,7 @@ class CredentialService {
 		const webhookUrl = settings?.notifications?.webhook_url;
 		const webhookSecret = settings?.notifications?.webhook_secret;
 
-		const rawKey = crypto.randomBytes(32).toString('hex');
-		const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
-		const prefix = `HRMS-${rawKey.slice(0, 7)}`;
+		const { fullApiKey, keyHash, prefix } = await generateSecureApiKey();
 
 		const newExpiry = new Date();
 		newExpiry.setDate(newExpiry.getDate() + 30);
@@ -308,7 +305,7 @@ class CredentialService {
 			const payload = {
 				serviceId: cred.service_id,
 				credentialId: cred.id,
-				newApiKey: rawKey,
+				newApiKey: fullApiKey,
 				rotatedAt: new Date().toISOString(),
 				expiresAt: newExpiry.toISOString(),
 			};
@@ -332,7 +329,7 @@ class CredentialService {
 			metadata: { credential_id: cred.id, webhookDispatched },
 		});
 
-		return { message: 'Chave rotacionada com sucesso', key: rawKey, webhookDispatched };
+		return { message: 'Chave rotacionada com sucesso', key: fullApiKey, webhookDispatched };
 	}
 
 	async deleteCredential(serviceId: string, credentialId: string, userId: string) {
