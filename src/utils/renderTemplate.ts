@@ -6,11 +6,16 @@ import { getTimestamp } from './helpers/dateUtils.js';
 // Utilitário para renderizar templates do Hermes.
 // Realiza a transpilação de MJML para HTML e a injeção de variáveis via Handlebars.
 
-export async function renderTemplate(mjmlContent: string, variables: Record<string, any> = {}) {
+// Aceita a fonte MJML crua (compila na hora) ou uma função Handlebars já compilada
+// (ver templateCache.ts) — evita recompilar o mesmo template em envios em massa/repetidos.
+export async function renderTemplate(
+	mjmlSource: string | Handlebars.TemplateDelegate,
+	variables: Record<string, any> = {},
+) {
 	try {
 		// 1. Injeta as variáveis no MJML usando Handlebars
 		// Isso permite usar variáveis dentro de tags MJML (ex: <mj-text>{{nome}}</mj-text>)
-		const template = Handlebars.compile(mjmlContent);
+		const template = typeof mjmlSource === 'string' ? Handlebars.compile(mjmlSource) : mjmlSource;
 		const mjmlWithVars = template(variables);
 
 		// 2. Transpila o MJML para HTML puro compatível com clientes de e-mail

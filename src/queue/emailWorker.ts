@@ -1,6 +1,6 @@
 import { Worker, Job } from 'bullmq';
 import nodemailer from 'nodemailer';
-import Handlebars from 'handlebars';
+import { convert as htmlToText } from 'html-to-text';
 import chalk from 'chalk';
 import { redisConfig } from '../config/redisConfig.js';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
@@ -8,10 +8,10 @@ import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import { EmailJobPayload } from './emailQueue.js';
 import emailRepository from '../repository/emailRepository.js';
 import credentialRepository from '../repository/credentialRepository.js';
-import templateRepository from '../repository/templateRepository.js';
 import serviceRepository from '../repository/serviceRepository.js';
 import { decrypt } from '../service/credentialService.js';
 import { renderTemplate } from '../utils/renderTemplate.js';
+import { getCachedTemplate } from '../utils/templateCache.js';
 
 const transporterCache = new Map<string, nodemailer.Transporter>();
 
@@ -122,23 +122,23 @@ async function processEmailJob(job: Job<EmailJobPayload>) {
 	let finalSubject = mailData.subject;
 
 	if (mailData.service_template_id) {
-		const tmpl = await templateRepository.findById(mailData.service_template_id);
-		if (tmpl) {
-			if (tmpl.compiled_html) {
-				const compileBody = Handlebars.compile(tmpl.compiled_html);
-				finalHtml = compileBody(variables || {});
-			} else if (tmpl.html_content) {
+		// Cache em memória (TTL ~60s) evita ida ao banco + recompilação Handlebars por
+		// e-mail em envios que reutilizam o mesmo template (ex: bulk send).
+		const cached = await getCachedTemplate(mailData.service_template_id);
+		if (cached) {
+			const { tmpl, htmlCompiledFn, subjectCompiledFn } = cached;
+			if (tmpl.html_content) {
 				if (tmpl.html_content.includes('<mjml>')) {
-					const { html } = await renderTemplate(tmpl.html_content, variables || {});
+					// Handlebars roda ANTES do MJML aqui — mesma ordem do preview (renderTemplate.ts),
+					// pra garantir que o que o usuário vê no editor é o que é de fato enviado.
+					const { html } = await renderTemplate(htmlCompiledFn, variables || {});
 					finalHtml = html;
 				} else {
-					const compileBody = Handlebars.compile(tmpl.html_content);
-					finalHtml = compileBody(variables || {});
+					finalHtml = htmlCompiledFn(variables || {});
 				}
 			}
-			if (tmpl.subject_template) {
-				const compileSubject = Handlebars.compile(tmpl.subject_template);
-				finalSubject = compileSubject(variables || {});
+			if (subjectCompiledFn) {
+				finalSubject = subjectCompiledFn(variables || {});
 			}
 		}
 	} else if (finalHtml.includes('<mjml>')) {
@@ -157,6 +157,7 @@ async function processEmailJob(job: Job<EmailJobPayload>) {
 			to: mailData.recipient_to,
 			subject: finalSubject,
 			html: finalHtml,
+			text: htmlToText(finalHtml, { wordwrap: 130 }),
 		};
 
 		const settings = serviceData.settings as any;

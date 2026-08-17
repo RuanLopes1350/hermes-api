@@ -13,6 +13,7 @@ import { DomainError } from '../utils/helpers/domainError.js';
 import { renderTemplate } from '../utils/renderTemplate.js';
 import { sanitizeHtml } from '../utils/helpers/sanitizer.js';
 import mjml2html from 'mjml';
+import Handlebars from 'handlebars';
 
 // Erro de domínio para templates
 export class TemplateDomainError extends DomainError {
@@ -23,6 +24,48 @@ export class TemplateDomainError extends DomainError {
 }
 
 class TemplateService {
+	// Valida a sintaxe do conteúdo de um template antes de salvar: MJML (estrutura) e
+	// Handlebars (variáveis). Lança TemplateDomainError (422) se algo estiver quebrado.
+	//
+	// IMPORTANTE: Handlebars.compile() sozinho NÃO detecta blocos mal fechados
+	// (ex: {{#if x}}...{{/if_typo}}) — o erro só aparece quando o template compilado
+	// é de fato invocado. Por isso invocamos com {} aqui, só para validar a sintaxe.
+	private validateTemplateContent(htmlContent: string, subjectTemplate?: string | null) {
+		if (htmlContent.includes('<mjml>')) {
+			try {
+				mjml2html(htmlContent, { validationLevel: 'strict' });
+			} catch (err: any) {
+				throw new TemplateDomainError(
+					`O MJML informado é inválido: ${err.message}`,
+					HttpStatusCode.UNPROCESSABLE_ENTITY.code,
+					'INVALID_MJML',
+				);
+			}
+		}
+
+		try {
+			Handlebars.compile(htmlContent)({});
+		} catch (err: any) {
+			throw new TemplateDomainError(
+				`O conteúdo tem um erro de sintaxe Handlebars: ${err.message}`,
+				HttpStatusCode.UNPROCESSABLE_ENTITY.code,
+				'INVALID_HANDLEBARS',
+			);
+		}
+
+		if (subjectTemplate) {
+			try {
+				Handlebars.compile(subjectTemplate)({});
+			} catch (err: any) {
+				throw new TemplateDomainError(
+					`O assunto tem um erro de sintaxe Handlebars: ${err.message}`,
+					HttpStatusCode.UNPROCESSABLE_ENTITY.code,
+					'INVALID_HANDLEBARS',
+				);
+			}
+		}
+	}
+
 	// Pre-visualiza um template
 	async previewTemplate(data: any) {
 		const { mjml, variables } = data;
@@ -33,16 +76,25 @@ class TemplateService {
 				'MJML_REQUIRED',
 			);
 		}
-		const result = await renderTemplate(mjml, variables || {});
+		// Preview é tolerante a erro: nunca deve estourar um 500 pro usuário só por causa de
+		// uma sintaxe MJML/Handlebars inválida enquanto ele ainda está digitando — o erro
+		// vira parte do resultado (errors), não uma exceção.
+		try {
+			const result = await renderTemplate(mjml, variables || {});
+			const safeHtml = sanitizeHtml(result.html);
 
-		// Sanitização contra XSS
-		const safeHtml = sanitizeHtml(result.html);
-
-		return {
-			html: safeHtml,
-			errors: result.errors,
-			renderedAt: new Date(),
-		};
+			return {
+				html: safeHtml,
+				errors: result.errors,
+				renderedAt: new Date(),
+			};
+		} catch (err: any) {
+			return {
+				html: '',
+				errors: [err.message || 'Falha ao renderizar o template.'],
+				renderedAt: new Date(),
+			};
+		}
 	}
 
 	async createTemplate(params: any, data: any, currentUser: any) {
@@ -76,15 +128,7 @@ class TemplateService {
 			}
 		}
 
-		let compiledHtml = parsedData.html_content;
-		if (parsedData.html_content.includes('<mjml>')) {
-			try {
-				const result = await mjml2html(parsedData.html_content, { validationLevel: 'soft' });
-				compiledHtml = result.html;
-			} catch (err: any) {
-				console.error('[TemplateService] Erro ao compilar MJML para AOT:', err);
-			}
-		}
+		this.validateTemplateContent(parsedData.html_content, parsedData.subject_template);
 
 		const newTemplate = await templateRepository.create({
 			name: parsedData.name,
@@ -93,7 +137,6 @@ class TemplateService {
 			global: parsedData.global,
 			subjectTemplate: parsedData.subject_template,
 			htmlContent: parsedData.html_content,
-			compiledHtml: compiledHtml,
 			textContent: parsedData.text_content,
 		});
 
@@ -112,6 +155,16 @@ class TemplateService {
 			actor_id: userId,
 			action: 'TEMPLATE_CREATED',
 			description: `Criou o template "${newTemplate.name}"`,
+			metadata: {
+				snapshot: {
+					name: newTemplate.name,
+					subject_template: newTemplate.subject_template,
+					html_content: newTemplate.html_content,
+					text_content: newTemplate.text_content,
+					global: newTemplate.global,
+					service_id: newTemplate.service_id,
+				},
+			},
 		});
 
 		console.log(
@@ -223,24 +276,17 @@ class TemplateService {
 
 		const parsedData = updateTemplateSchema.parse(data);
 
-		let compiledHtml: string | undefined = undefined;
-		if (parsedData.html_content !== undefined) {
-			compiledHtml = parsedData.html_content;
-			if (parsedData.html_content && parsedData.html_content.includes('<mjml>')) {
-				try {
-					const result = await mjml2html(parsedData.html_content, { validationLevel: 'soft' });
-					compiledHtml = result.html;
-				} catch (err: any) {
-					console.error('[TemplateService] Erro ao compilar MJML para AOT:', err);
-				}
-			}
+		if (parsedData.html_content !== undefined || parsedData.subject_template !== undefined) {
+			this.validateTemplateContent(
+				parsedData.html_content ?? found.html_content,
+				parsedData.subject_template ?? found.subject_template,
+			);
 		}
 
 		const updated = await templateRepository.updateById(templateId, {
 			name: parsedData.name,
 			subject_template: parsedData.subject_template,
 			html_content: parsedData.html_content,
-			compiled_html: compiledHtml,
 			text_content: parsedData.text_content,
 			global: parsedData.global,
 			service_id: parsedData.service_id,
@@ -269,6 +315,16 @@ class TemplateService {
 			actor_id: userId,
 			action: 'TEMPLATE_UPDATED',
 			description: `Atualizou o template "${updated.name}"`,
+			metadata: {
+				snapshot: {
+					name: updated.name,
+					subject_template: updated.subject_template,
+					html_content: updated.html_content,
+					text_content: updated.text_content,
+					global: updated.global,
+					service_id: updated.service_id,
+				},
+			},
 		});
 
 		return updated;
