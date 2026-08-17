@@ -12,8 +12,7 @@ class CredentialController {
 		);
 		try {
 			const serviceId = String(req.params.serviceId);
-			const userId = req.user!.id;
-			const result = await credentialService.createCredential(serviceId, req.body, userId);
+			const result = await credentialService.createCredential(serviceId, req.body, req.user!);
 			return CommonResponse.created(res, result, 'Credencial e API Key criadas com sucesso!');
 		} catch (error) {
 			next(error);
@@ -24,8 +23,7 @@ class CredentialController {
 	async list(req: Request, res: Response, next: NextFunction) {
 		try {
 			const serviceId = String(req.params.serviceId);
-			const userId = req.user!.id;
-			const credentials = await credentialService.listCredentials(serviceId, userId);
+			const credentials = await credentialService.listCredentials(serviceId, req.user!);
 			return CommonResponse.success(
 				res,
 				credentials,
@@ -41,8 +39,7 @@ class CredentialController {
 	async listGlobal(req: Request, res: Response, next: NextFunction) {
 		console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/credentials`));
 		try {
-			const userId = req.user!.id;
-			const credentials = await credentialService.listAllUserCredentials(userId);
+			const credentials = await credentialService.listAllUserCredentials(req.user!);
 			return CommonResponse.success(
 				res,
 				credentials,
@@ -58,8 +55,7 @@ class CredentialController {
 		try {
 			const serviceId = String(req.params.serviceId);
 			const id = String(req.params.id);
-			const userId = req.user!.id;
-			const found = await credentialService.getCredential(serviceId, id, userId);
+			const found = await credentialService.getCredential(serviceId, id, req.user!);
 			return CommonResponse.success(res, found, 200, 'Credencial encontrada.');
 		} catch (error) {
 			next(error);
@@ -70,8 +66,7 @@ class CredentialController {
 		try {
 			const serviceId = String(req.params.serviceId);
 			const id = String(req.params.id);
-			const userId = req.user!.id;
-			const updated = await credentialService.updateCredential(serviceId, id, req.body, userId);
+			const updated = await credentialService.updateCredential(serviceId, id, req.body, req.user!);
 			return CommonResponse.success(res, updated, 200, 'Credencial atualizada com sucesso.');
 		} catch (error) {
 			next(error);
@@ -82,8 +77,7 @@ class CredentialController {
 		try {
 			const serviceId = String(req.params.serviceId);
 			const id = String(req.params.id);
-			const userId = req.user!.id;
-			const result = await credentialService.rotateCredential(serviceId, id, userId);
+			const result = await credentialService.rotateCredential(serviceId, id, req.user!);
 			return CommonResponse.success(res, result, 200, 'Credencial rotacionada com sucesso.');
 		} catch (error) {
 			next(error);
@@ -94,8 +88,7 @@ class CredentialController {
 		try {
 			const serviceId = String(req.params.serviceId);
 			const id = String(req.params.id);
-			const userId = req.user!.id;
-			const result = await credentialService.deleteCredential(serviceId, id, userId);
+			const result = await credentialService.deleteCredential(serviceId, id, req.user!);
 			return CommonResponse.success(res, result, 200, 'Credencial removida com sucesso.');
 		} catch (error) {
 			next(error);
@@ -107,8 +100,7 @@ class CredentialController {
 		try {
 			const serviceId = String(req.params.serviceId);
 			const id = String(req.params.id);
-			const userId = req.user!.id;
-			const url = await credentialService.getGoogleAuthUrl(serviceId, id, userId);
+			const url = await credentialService.getGoogleAuthUrl(serviceId, id, req.user!);
 			return res.redirect(url);
 		} catch (error) {
 			next(error);

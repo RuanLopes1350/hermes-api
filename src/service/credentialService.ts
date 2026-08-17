@@ -11,6 +11,7 @@ import {
 import { DomainError } from '../utils/helpers/domainError.js';
 import { getAuthUrl, getTokensFromCode } from '../utils/googleAuth.js';
 import { generateSecureApiKey } from '../utils/apiKeyGenerate.js';
+import { isPlatformAdmin, resolveServiceAccess } from '../utils/authz.js';
 
 export class CredentialDomainError extends DomainError {
 	constructor(message: string, statusCode: number, errorCode: string) {
@@ -56,12 +57,13 @@ export function decryptPasskey(ciphertext: string): string {
 }
 
 class CredentialService {
-	async createCredential(serviceId: string, data: any, userId: string) {
+	async createCredential(serviceId: string, data: any, currentUser: any) {
 		console.log(
 			chalk.blue.bold(`[${getTimestamp()}] [INFO] [CredentialService] Criando credencial...`),
 		);
 
-		const access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
+		const userId = currentUser.id;
+		const access = await resolveServiceAccess(serviceId, currentUser);
 		if (!access)
 			throw new CredentialDomainError(
 				'Serviço não encontrado ou você não tem acesso.',
@@ -134,8 +136,8 @@ class CredentialService {
 		};
 	}
 
-	async getGoogleAuthUrl(serviceId: string, credentialId: string, userId: string) {
-		const cred = await this.getCredential(serviceId, credentialId, userId);
+	async getGoogleAuthUrl(serviceId: string, credentialId: string, currentUser: any) {
+		const cred = await this.getCredential(serviceId, credentialId, currentUser);
 		if (cred.auth_type !== 'oauth2' || !cred.client_id || !cred.client_secret) {
 			throw new CredentialDomainError('Esta credencial não é OAuth2.', 400, 'INVALID_AUTH_TYPE');
 		}
@@ -191,18 +193,21 @@ class CredentialService {
 		return { message: 'Autenticação concluída!' };
 	}
 
-	async listCredentials(serviceId: string, userId: string) {
-		const access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
+	async listCredentials(serviceId: string, currentUser: any) {
+		const access = await resolveServiceAccess(serviceId, currentUser);
 		if (!access) throw new CredentialDomainError('Acesso negado.', 403, 'FORBIDDEN');
 		return credentialRepository.findAllByService(serviceId);
 	}
 
-	async listAllUserCredentials(userId: string) {
-		return credentialRepository.findAllByUser(userId);
+	async listAllUserCredentials(currentUser: any) {
+		if (isPlatformAdmin(currentUser)) {
+			return credentialRepository.findAllForAdmin();
+		}
+		return credentialRepository.findAllByUser(currentUser.id);
 	}
 
-	async getCredential(serviceId: string, credentialId: string, userId: string) {
-		const access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
+	async getCredential(serviceId: string, credentialId: string, currentUser: any) {
+		const access = await resolveServiceAccess(serviceId, currentUser);
 		if (!access) throw new CredentialDomainError('Acesso negado ao serviço.', 403, 'FORBIDDEN');
 
 		const found = await credentialRepository.findById(credentialId);
@@ -218,12 +223,13 @@ class CredentialService {
 		return decryptPasskey(found.passkey);
 	}
 
-	async updateCredential(serviceId: string, credentialId: string, data: any, userId: string) {
+	async updateCredential(serviceId: string, credentialId: string, data: any, currentUser: any) {
 		console.log(
 			chalk.blue.bold(`[${getTimestamp()}] [INFO] [CredentialService] Atualizando credencial...`),
 		);
 
-		const access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
+		const userId = currentUser.id;
+		const access = await resolveServiceAccess(serviceId, currentUser);
 		if (!access)
 			throw new CredentialDomainError(
 				'Serviço não encontrado ou você não tem acesso.',
@@ -270,14 +276,15 @@ class CredentialService {
 		return updated;
 	}
 
-	async rotateCredential(serviceId: string, credentialId: string, userId: string) {
+	async rotateCredential(serviceId: string, credentialId: string, currentUser: any) {
 		console.log(
 			chalk.blue.bold(
 				`[${getTimestamp()}] [INFO] [CredentialService] Rotacionando credencial manualmente...`,
 			),
 		);
 
-		const access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
+		const userId = currentUser.id;
+		const access = await resolveServiceAccess(serviceId, currentUser);
 		if (!access) throw new CredentialDomainError('Acesso negado.', 403, 'FORBIDDEN');
 
 		const cred = await credentialRepository.findById(credentialId);
@@ -343,11 +350,12 @@ class CredentialService {
 		};
 	}
 
-	async deleteCredential(serviceId: string, credentialId: string, userId: string) {
-		const cred = await this.getCredential(serviceId, credentialId, userId);
-		const access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
+	async deleteCredential(serviceId: string, credentialId: string, currentUser: any) {
+		const userId = currentUser.id;
+		const cred = await this.getCredential(serviceId, credentialId, currentUser);
+		const access = await resolveServiceAccess(serviceId, currentUser);
 
-		if (access!.role === 'member' && cred.creator_id !== userId) {
+		if (access?.role === 'member' && cred.creator_id !== userId) {
 			throw new CredentialDomainError(
 				'Você só pode excluir credenciais que você mesmo criou.',
 				403,

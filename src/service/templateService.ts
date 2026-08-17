@@ -14,6 +14,7 @@ import { renderTemplate } from '../utils/renderTemplate.js';
 import { sanitizeHtml } from '../utils/helpers/sanitizer.js';
 import mjml2html from 'mjml';
 import Handlebars from 'handlebars';
+import { isPlatformAdmin, resolveServiceAccess } from '../utils/authz.js';
 
 // Erro de domínio para templates
 export class TemplateDomainError extends DomainError {
@@ -118,8 +119,8 @@ class TemplateService {
 					'SERVICE_REQUIRED',
 				);
 			}
-			const serviceExists = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-			if (!serviceExists) {
+			const access = await resolveServiceAccess(serviceId, currentUser);
+			if (!access) {
 				throw new TemplateDomainError(
 					'Serviço não encontrado ou você não tem permissão.',
 					HttpStatusCode.NOT_FOUND.code,
@@ -176,9 +177,8 @@ class TemplateService {
 	}
 
 	async listTemplates(serviceId: string, currentUser: any) {
-		const userId = currentUser.id;
-		const serviceExists = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		if (!serviceExists) {
+		const access = await resolveServiceAccess(serviceId, currentUser);
+		if (!access) {
 			throw new TemplateDomainError(
 				'Serviço não encontrado.',
 				HttpStatusCode.NOT_FOUND.code,
@@ -189,14 +189,14 @@ class TemplateService {
 	}
 
 	async listAllTemplatesByUser(currentUser: any) {
-		if ((currentUser.role === 'super_admin' || currentUser.role === 'admin')) {
+		if (isPlatformAdmin(currentUser)) {
 			return templateRepository.findAllForAdmin();
 		}
 		return templateRepository.findAllByUser(currentUser.id);
 	}
 
 	async getTemplateById(templateId: string, currentUser: any) {
-		const found = (currentUser.role === 'super_admin' || currentUser.role === 'admin')
+		const found = isPlatformAdmin(currentUser)
 			? await templateRepository.findById(templateId)
 			: await templateRepository.findByIdAndUser(templateId, currentUser.id);
 		if (!found) {
@@ -210,13 +210,9 @@ class TemplateService {
 	}
 
 	async getTemplate(serviceId: string, templateId: string, currentUser: any) {
-		const userId = currentUser.id;
-		let serviceExists = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		if (!serviceExists && (currentUser.role === 'super_admin' || currentUser.role === 'admin')) {
-			serviceExists = true as any; // Bypass admin
-		}
+		const access = await resolveServiceAccess(serviceId, currentUser);
 
-		if (!serviceExists) {
+		if (!access) {
 			throw new TemplateDomainError(
 				'Serviço não encontrado.',
 				HttpStatusCode.NOT_FOUND.code,
@@ -247,7 +243,7 @@ class TemplateService {
 			);
 		}
 
-		if ((currentUser.role === 'super_admin' || currentUser.role === 'admin')) return found;
+		if (isPlatformAdmin(currentUser)) return found;
 
 		// Se tem service_id, verifica se o usuário é dono do serviço
 		if (found.service_id) {

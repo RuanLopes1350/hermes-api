@@ -79,6 +79,30 @@ class CredentialRepository {
 		}
 	}
 
+	async findAllForAdmin(): Promise<Partial<CredentialType>[]> {
+		try {
+			return await db
+				.select({
+					id: credential.id,
+					name: credential.name,
+					auth_type: credential.auth_type,
+					login: credential.login,
+					service_id: credential.service_id,
+					refresh_token: credential.refresh_token,
+					prefix: credential.prefix,
+					is_active: credential.is_active,
+					expiresAt: credential.expiresAt,
+					creator_id: credential.creator_id,
+					createdAt: credential.createdAt,
+					updatedAt: credential.updatedAt,
+				})
+				.from(credential)
+				.where(isNull(credential.deletedAt));
+		} catch (error) {
+			throw parseDatabaseError(error, 'CredentialRepository.findAllForAdmin');
+		}
+	}
+
 	async findAllByUser(userId: string): Promise<Partial<CredentialType>[]> {
 		try {
 			return await db

@@ -7,6 +7,7 @@ import { createEmailSchema, createBulkEmailSchema } from '../utils/validation/em
 import { emailQueue, priorityMap } from '../queue/emailQueue.js';
 import HttpStatusCode from '../utils/helpers/httpStatusCode.js';
 import { DomainError } from '../utils/helpers/domainError.js';
+import { resolveServiceAccess } from '../utils/authz.js';
 
 // Erro de domínio para e-mails
 export class EmailDomainError extends DomainError {
@@ -222,11 +223,8 @@ class EmailService {
 		limit: number = 50,
 		offset: number = 0,
 	) {
-		const userId = currentUser.id;
-		const serviceExists = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		const isAdmin = currentUser.role === 'super_admin' || currentUser.role === 'admin';
-		if (!serviceExists && !isAdmin)
-			throw new EmailDomainError('Serviço não encontrado.', 404, 'NOT_FOUND');
+		const access = await resolveServiceAccess(serviceId, currentUser);
+		if (!access) throw new EmailDomainError('Serviço não encontrado.', 404, 'NOT_FOUND');
 		return emailRepository.findAllByService(serviceId, status, limit, offset);
 	}
 
@@ -239,9 +237,8 @@ class EmailService {
 	) {
 		const userId = currentUser.id;
 		if (serviceId) {
-			const serviceExists = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-			const isAdmin = currentUser.role === 'super_admin' || currentUser.role === 'admin';
-			if (!serviceExists && !isAdmin) {
+			const access = await resolveServiceAccess(serviceId, currentUser);
+			if (!access) {
 				throw new EmailDomainError('Serviço não encontrado.', 404, 'NOT_FOUND');
 			}
 		}
@@ -257,15 +254,12 @@ class EmailService {
 	}
 
 	async getEmail(serviceId: string, emailId: string, currentUser: any) {
-		const userId = currentUser.id;
 		const found = await emailRepository.findById(emailId);
 		if (!found || found.service_id !== serviceId)
 			throw new EmailDomainError('E-mail não encontrado.', 404, 'NOT_FOUND');
 
-		const access = await serviceRepository.findServiceAndUserRole(serviceId, userId);
-		const isAdmin = currentUser.role === 'super_admin' || currentUser.role === 'admin';
-		if (!access && !isAdmin)
-			throw new EmailDomainError('Acesso negado.', 403, 'FORBIDDEN');
+		const access = await resolveServiceAccess(serviceId, currentUser);
+		if (!access) throw new EmailDomainError('Acesso negado.', 403, 'FORBIDDEN');
 
 		return found;
 	}
@@ -278,9 +272,8 @@ class EmailService {
 		);
 
 		// 1. Validação de Acesso
-		const access = await serviceRepository.findServiceAndUserRole(serviceId, user.id);
-		const isAdmin = user.role === 'super_admin' || user.role === 'admin';
-		if (!access && !isAdmin) {
+		const access = await resolveServiceAccess(serviceId, user);
+		if (!access) {
 			throw new EmailDomainError(
 				'Serviço não encontrado ou acesso negado.',
 				HttpStatusCode.FORBIDDEN.code,
@@ -321,9 +314,8 @@ class EmailService {
 			),
 		);
 
-		const access = await serviceRepository.findServiceAndUserRole(serviceId, user.id);
-		const isAdmin = user.role === 'super_admin' || user.role === 'admin';
-		if (!access && !isAdmin) {
+		const access = await resolveServiceAccess(serviceId, user);
+		if (!access) {
 			throw new EmailDomainError(
 				'Serviço não encontrado ou acesso negado.',
 				HttpStatusCode.FORBIDDEN.code,
