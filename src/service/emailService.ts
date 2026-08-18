@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
-import emailRepository from '../repository/emailRepository.js';
+import emailRepository, { EmailListFilters } from '../repository/emailRepository.js';
 import serviceRepository from '../repository/serviceRepository.js';
 import templateRepository from '../repository/templateRepository.js';
 import { createEmailSchema, createBulkEmailSchema } from '../utils/validation/emailValidation.js';
@@ -204,36 +204,24 @@ class EmailService {
 		};
 	}
 
-	async listAllEmailsGlobally(currentUser: any, limit: number = 50, offset: number = 0) {
-		const isAdmin = currentUser.role === 'super_admin' || currentUser.role === 'admin';
-		if (!isAdmin) {
-			throw new EmailDomainError(
-				'Acesso negado. Apenas administradores podem acessar todos os e-mails.',
-				403,
-				'FORBIDDEN',
-			);
-		}
-		return emailRepository.findAllGloballyForAdmin(limit, offset);
-	}
-
 	async listEmails(
 		serviceId: string,
 		currentUser: any,
-		status?: string,
+		filters: EmailListFilters = {},
 		limit: number = 50,
 		offset: number = 0,
 	) {
 		const access = await resolveServiceAccess(serviceId, currentUser);
 		if (!access) throw new EmailDomainError('Serviço não encontrado.', 404, 'NOT_FOUND');
-		return emailRepository.findAllByService(serviceId, status, limit, offset);
+		return emailRepository.findAllByService(serviceId, filters, limit, offset);
 	}
 
 	async listUserEmails(
 		currentUser: any,
+		filters: EmailListFilters = {},
 		limit: number = 50,
 		offset: number = 0,
 		serviceId?: string,
-		status?: string,
 	) {
 		const userId = currentUser.id;
 		if (serviceId) {
@@ -246,10 +234,27 @@ class EmailService {
 		return emailRepository.findAllByUser(
 			userId,
 			currentUser.role === 'super_admin' || currentUser.role === 'admin',
+			filters,
 			limit,
 			offset,
 			serviceId,
-			status,
+		);
+	}
+
+	async exportUserEmails(currentUser: any, filters: EmailListFilters = {}, serviceId?: string) {
+		const userId = currentUser.id;
+		if (serviceId) {
+			const access = await resolveServiceAccess(serviceId, currentUser);
+			if (!access) {
+				throw new EmailDomainError('Serviço não encontrado.', 404, 'NOT_FOUND');
+			}
+		}
+
+		return emailRepository.exportByUser(
+			userId,
+			currentUser.role === 'super_admin' || currentUser.role === 'admin',
+			filters,
+			serviceId,
 		);
 	}
 

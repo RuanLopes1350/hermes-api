@@ -4,6 +4,34 @@ import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import emailService from '../service/emailService.js';
 import streamService from '../service/streamService.js';
 import CommonResponse from '../utils/helpers/commonResponse.js';
+import { EmailListFilters } from '../repository/emailRepository.js';
+
+// Extrai limit/offset da querystring com os mesmos limites de sempre (máx. 100 por página).
+function parsePagination(req: Request) {
+	let limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 50;
+	if (isNaN(limit) || limit <= 0) {
+		limit = 50;
+	} else {
+		limit = Math.min(limit, 100);
+	}
+
+	let offset = req.query.offset ? parseInt(String(req.query.offset), 10) : 0;
+	if (isNaN(offset) || offset < 0) {
+		offset = 0;
+	}
+
+	return { limit, offset };
+}
+
+// Extrai os filtros compartilhados (status, busca por texto, intervalo de datas) da querystring.
+function parseFilters(req: Request): EmailListFilters {
+	return {
+		status: typeof req.query.status === 'string' ? req.query.status : undefined,
+		search: typeof req.query.search === 'string' ? req.query.search : undefined,
+		startDate: typeof req.query.startDate === 'string' ? req.query.startDate : undefined,
+		endDate: typeof req.query.endDate === 'string' ? req.query.endDate : undefined,
+	};
+}
 
 class EmailController {
 	// POST /api/services/:serviceId/emails
@@ -77,55 +105,26 @@ class EmailController {
 		});
 	}
 
-	// GET /api/emails/all
-	async listAll(req: Request, res: Response, next: NextFunction) {
-		console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/emails/all`));
-		try {
-			let limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 50;
-			if (isNaN(limit) || limit <= 0) {
-				limit = 50;
-			} else {
-				limit = Math.min(limit, 100);
-			}
-
-			let offset = req.query.offset ? parseInt(String(req.query.offset), 10) : 0;
-			if (isNaN(offset) || offset < 0) {
-				offset = 0;
-			}
-
-			const emails = await emailService.listAllEmailsGlobally(req.user, limit, offset);
-			return CommonResponse.success(
-				res,
-				emails,
-				200,
-				`${emails.length} e-mail(s) globais encontrado(s).`,
-			);
-		} catch (error) {
-			next(error);
-		}
-	}
-
 	// GET /api/emails
 	async listUserEmails(req: Request, res: Response, next: NextFunction) {
 		console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/emails`));
 		try {
-			let limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 50;
-			if (isNaN(limit) || limit <= 0) {
-				limit = 50;
-			} else {
-				limit = Math.min(limit, 100);
-			}
-
-			let offset = req.query.offset ? parseInt(String(req.query.offset), 10) : 0;
-			if (isNaN(offset) || offset < 0) {
-				offset = 0;
-			}
-
+			const { limit, offset } = parsePagination(req);
+			const filters = parseFilters(req);
 			const serviceId = typeof req.query.serviceId === 'string' ? req.query.serviceId : undefined;
-			const status = typeof req.query.status === 'string' ? req.query.status : undefined;
 
-			const emails = await emailService.listUserEmails(req.user, limit, offset, serviceId, status);
-			return CommonResponse.success(res, emails, 200, `${emails.length} e-mail(s) encontrado(s).`);
+			const { rows, total } = await emailService.listUserEmails(
+				req.user,
+				filters,
+				limit,
+				offset,
+				serviceId,
+			);
+			return CommonResponse.success(res, rows, 200, `${rows.length} e-mail(s) encontrado(s).`, {
+				total,
+				limit,
+				offset,
+			});
 		} catch (error) {
 			next(error);
 		}
@@ -137,27 +136,70 @@ class EmailController {
 			chalk.cyan(`[${getTimestamp()}] [GET] /api/services/${req.params.serviceId}/emails`),
 		);
 		try {
-			let limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 50;
-			if (isNaN(limit) || limit <= 0) {
-				limit = 50;
-			} else {
-				limit = Math.min(limit, 100);
-			}
+			const { limit, offset } = parsePagination(req);
+			const filters = parseFilters(req);
 
-			let offset = req.query.offset ? parseInt(String(req.query.offset), 10) : 0;
-			if (isNaN(offset) || offset < 0) {
-				offset = 0;
-			}
-
-			const status = typeof req.query.status === 'string' ? req.query.status : undefined;
-			const emails = await emailService.listEmails(
+			const { rows, total } = await emailService.listEmails(
 				String(req.params.serviceId),
 				req.user,
-				status,
+				filters,
 				limit,
 				offset,
 			);
-			return CommonResponse.success(res, emails, 200, `${emails.length} e-mail(s) encontrado(s).`);
+			return CommonResponse.success(res, rows, 200, `${rows.length} e-mail(s) encontrado(s).`, {
+				total,
+				limit,
+				offset,
+			});
+		} catch (error) {
+			next(error);
+		}
+	}
+
+	// GET /api/emails/export — CSV com todos os resultados do filtro atual (sem paginação)
+	async exportCsv(req: Request, res: Response, next: NextFunction) {
+		console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/emails/export`));
+		try {
+			const filters = parseFilters(req);
+			const serviceId = typeof req.query.serviceId === 'string' ? req.query.serviceId : undefined;
+
+			const rows = await emailService.exportUserEmails(req.user, filters, serviceId);
+
+			const header = [
+				'data_criacao',
+				'status',
+				'servico',
+				'destinatario',
+				'assunto',
+				'credencial',
+				'tentativas',
+				'enviado_em',
+				'erro',
+			];
+			const escapeCsv = (value: unknown) => {
+				const str = value === null || value === undefined ? '' : String(value);
+				return `"${str.replace(/"/g, '""')}"`;
+			};
+			const lines = rows.map((r: any) =>
+				[
+					r.createdAt,
+					r.status,
+					r.serviceName || '',
+					r.recipient_to,
+					r.subject,
+					r.credentialName || '',
+					r.retry_count ?? 0,
+					r.sent_at || '',
+					r.error_log || '',
+				]
+					.map(escapeCsv)
+					.join(','),
+			);
+			const csv = [header.join(','), ...lines].join('\n');
+
+			res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+			res.setHeader('Content-Disposition', `attachment; filename="emails-${Date.now()}.csv"`);
+			return res.send('﻿' + csv); // BOM pra acentuação abrir certo no Excel
 		} catch (error) {
 			next(error);
 		}
