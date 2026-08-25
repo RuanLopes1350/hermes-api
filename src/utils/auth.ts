@@ -3,6 +3,8 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { db } from '../config/dbConfig.js';
 import { bearer } from 'better-auth/plugins';
 import { account, user, session, verification } from '../config/db/schema.js';
+import { redisStorage } from '@better-auth/redis-storage';
+import { redisCache } from '../config/redisConfig.js';
 import dotenv from 'dotenv';
 
 dotenv.config({ quiet: true });
@@ -39,6 +41,13 @@ export const auth = betterAuth({
 			session,
 			verification,
 		},
+	}),
+
+	// Cacheia leituras de sessão em Redis (Postgres continua sendo a fonte de verdade).
+	// Reduz a carga no banco a cada chamada de requireAuth.
+	secondaryStorage: redisStorage({
+		client: redisCache,
+		keyPrefix: 'hermes-auth:',
 	}),
 
 	user: {

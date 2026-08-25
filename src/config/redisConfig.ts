@@ -12,3 +12,6 @@ export const redisConfig: ConnectionOptions = {
 
 export const redisPub = new Redis(redisConfig as any);
 export const redisSub = new Redis(redisConfig as any);
+// Cliente dedicado ao cache de sessões (secondaryStorage do Better Auth) —
+// separado de redisPub/redisSub para não competir com o modo subscriber.
+export const redisCache = new Redis(redisConfig as any);

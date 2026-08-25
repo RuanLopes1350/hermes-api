@@ -12,6 +12,19 @@ router.post('/users', authApiRateLimiter, userController.createUser.bind(userCon
 // GET /users — lista todos (admin only — a verificação acontece no Service)
 router.get('/users', requireAuth, userController.listUsers.bind(userController));
 
+// GET /users/session-events — SSE de invalidação de sessão (precisa vir antes de /users/:id)
+router.get('/users/session-events', requireAuth, userController.sessionEvents.bind(userController));
+
+// GET /users/online — snapshot de quem está online (precisa vir antes de /users/:id)
+router.get('/users/online', requireAuth, userController.listOnlineUsers.bind(userController));
+
+// GET /users/presence-stream — SSE de mudanças de presença (idem, antes de /users/:id)
+router.get(
+	'/users/presence-stream',
+	requireAuth,
+	userController.presenceStream.bind(userController),
+);
+
 // GET /users/:id — busca por ID (admin vê qualquer um; usuário comum, apenas o próprio)
 router.get('/users/:id', requireAuth, userController.getUser.bind(userController));
 

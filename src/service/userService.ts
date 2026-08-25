@@ -1,3 +1,4 @@
+import { Request, Response } from 'express';
 import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import { auth } from '../utils/auth.js';
@@ -10,7 +11,13 @@ import { isAPIError } from 'better-auth/api';
 import HttpStatusCode from '../utils/helpers/httpStatusCode.js';
 import { DomainError } from '../utils/helpers/domainError.js';
 import userRepository from '../repository/userRepository.js';
+import { redisPub } from '../config/redisConfig.js';
+import sessionStreamService from './sessionStreamService.js';
+import presenceService from './presenceService.js';
 import { UserType } from '../types/types.js';
+
+// Motivos possíveis de invalidação de sessão publicados em `session:revoked:<userId>`.
+type SessionRevokedReason = 'banned' | 'manual_revoke';
 
 // Erro de domínio para o contexto de usuário
 export class UserServiceError extends DomainError {
@@ -193,12 +200,118 @@ class UserService {
 			);
 		}
 
+		if (cleanedData.isActive === false) {
+			await this.revokeUserSessions(targetId, 'banned');
+		}
+
 		console.log(
 			chalk.green.bold(
 				`[${getTimestamp()}] [SUCCESS] [UserService] Usuário atualizado (Admin): ${targetId}`,
 			),
 		);
 		return updated;
+	}
+
+	// Revoga todas as sessões ativas de um usuário (Postgres) e publica o evento
+	// `session:revoked:<userId>` no Redis, para que uma conexão SSE aberta daquele
+	// usuário force o logout imediatamente, sem esperar a próxima requisição.
+	async revokeUserSessions(userId: string, reason: SessionRevokedReason) {
+		await userRepository.deleteSessionsByUserId(userId);
+
+		const payload = JSON.stringify({ reason, at: new Date().toISOString() });
+		await redisPub.publish(`session:revoked:${userId}`, payload);
+
+		console.log(
+			chalk.yellow.bold(
+				`[${getTimestamp()}] [INFO] [UserService] Sessões revogadas (${reason}): ${userId}`,
+			),
+		);
+	}
+
+	// GET /api/users/session-events (SSE)
+	// Notifica em tempo real o próprio usuário autenticado quando sua sessão é revogada.
+	streamSessionEvents(req: Request, res: Response) {
+		const userId = req.user?.id;
+		if (!userId) {
+			res.status(HttpStatusCode.UNAUTHORIZED.code).end();
+			return;
+		}
+
+		res.setHeader('Content-Type', 'text/event-stream');
+		res.setHeader('Cache-Control', 'no-cache');
+		res.setHeader('Connection', 'keep-alive');
+		res.flushHeaders();
+
+		presenceService.addConnection(userId, res);
+
+		const channel = `session:revoked:${userId}`;
+		const listener = (message: string) => {
+			res.write(`data: ${message}\n\n`);
+		};
+
+		sessionStreamService.emitter.on(channel, listener);
+
+		const keepAlive = setInterval(() => {
+			try {
+				res.write(': ping\n\n');
+			} catch {
+				// Ignora se o socket já fechou antes do interval limpar
+			}
+		}, 30000);
+
+		req.on('close', () => {
+			clearInterval(keepAlive);
+			sessionStreamService.emitter.off(channel, listener);
+			presenceService.removeConnection(userId, res);
+			res.end();
+		});
+	}
+
+	// GET /api/users/online — snapshot para popular o painel quando ele abre.
+	// Restrito a administradores (mesmo padrão de checagem usado em listUsers/getAdminStats).
+	async listOnlineUsers(currentUser?: UserType) {
+		const requesterIsAdmin = currentUser?.role === 'super_admin' || currentUser?.role === 'admin';
+		if (!requesterIsAdmin) {
+			throw new UserServiceError(
+				'Acesso negado. Apenas administradores podem ver quem está online.',
+				HttpStatusCode.FORBIDDEN.code,
+				'FORBIDDEN',
+			);
+		}
+
+		const onlineIds = presenceService.getOnlineUserIds();
+		return userRepository.findByIds(onlineIds);
+	}
+
+	// GET /api/users/presence-stream (SSE) - empurra "alguém entrou/saiu" em tempo real para os admins com o painel aberto. A checagem de admin acontece aqui
+	// (dentro do service) e não no middleware, mesmo padrão de getAdminStats em dashboardService.ts - requireAuth garante só autenticação, não role.
+	streamPresenceEvents(req: Request, res: Response) {
+		const requesterIsAdmin = req.user?.role === 'super_admin' || req.user?.role === 'admin';
+		if (!requesterIsAdmin) {
+			res.status(HttpStatusCode.FORBIDDEN.code).end();
+			return;
+		}
+
+		res.setHeader('Content-Type', 'text/event-stream');
+		res.setHeader('Cache-Control', 'no-cache');
+		res.setHeader('Connection', 'keep-alive');
+		res.flushHeaders();
+
+		presenceService.addListener(res);
+
+		const keepAlive = setInterval(() => {
+			try {
+				res.write(': ping\n\n');
+			} catch {
+				// ignora se o socket já fechou antes do interval limpar
+			}
+		}, 30000);
+
+		req.on('close', () => {
+			clearInterval(keepAlive);
+			presenceService.removeListener(res);
+			res.end();
+		});
 	}
 
 	// Deleta um usuário. Exclusivo para administradores.

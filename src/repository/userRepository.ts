@@ -1,6 +1,6 @@
 import { db } from '../config/dbConfig.js';
-import { user } from '../config/db/schema.js';
-import { eq } from 'drizzle-orm';
+import { user, session } from '../config/db/schema.js';
+import { eq, inArray } from 'drizzle-orm';
 import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
 import { parseDatabaseError } from '../utils/helpers/dbErrors.js';
@@ -60,7 +60,12 @@ class UserRepository {
 	// Email e senha são gerenciados pelo Better Auth, não por aqui.
 	async updateById(
 		id: string,
-		data: { name?: string; image?: string; role?: 'super_admin' | 'admin' | 'user'; isActive?: boolean },
+		data: {
+			name?: string;
+			image?: string;
+			role?: 'super_admin' | 'admin' | 'user';
+			isActive?: boolean;
+		},
 	) {
 		console.log(
 			chalk.magenta(`[${getTimestamp()}] [DB] [UserRepository] Atualizando usuário: ${id}`),
@@ -86,6 +91,19 @@ class UserRepository {
 		}
 	}
 
+	// Revoga (deleta) todas as sessões ativas de um usuário no Postgres.
+	// Usado ao desativar uma conta, para não deixar sessões "válidas" órfãs no banco.
+	async deleteSessionsByUserId(userId: string) {
+		console.log(
+			chalk.magenta(`[${getTimestamp()}] [DB] [UserRepository] Revogando sessões: ${userId}`),
+		);
+		try {
+			return await db.delete(session).where(eq(session.userId, userId));
+		} catch (error) {
+			throw parseDatabaseError(error, 'UserRepository.deleteSessionsByUserId');
+		}
+	}
+
 	// Deleta um usuário permanentemente.
 	// Sessions e accounts são removidas em cascata pelo banco (FK Better Auth).
 	async deleteById(id: string) {
@@ -97,6 +115,30 @@ class UserRepository {
 			return deleted ?? null;
 		} catch (error) {
 			throw parseDatabaseError(error, 'UserRepository.deleteById');
+		}
+	}
+
+	// Busca vários usuários por ID de uma vez (usado para resolver o snapshot de presença: presenceService só sabe os IDs, isso traz nome/e-mail/avatar)
+	async findByIds(ids: string[]) {
+		if (ids.length === 0) return [];
+		console.log(
+			chalk.magenta(
+				`[${getTimestamp}] [DB] [UserRepository] Buscando ${ids.length} usuário(s) por ID...`,
+			),
+		);
+		try {
+			return await db
+				.select({
+					id: user.id,
+					name: user.name,
+					email: user.email,
+					role: user.role,
+					image: user.image,
+				})
+				.from(user)
+				.where(inArray(user.id, ids));
+		} catch (error) {
+			throw parseDatabaseError(error, 'UserRepository.findByIds');
 		}
 	}
 }

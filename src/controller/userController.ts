@@ -78,6 +78,30 @@ class UserController {
 		}
 	}
 
+	// GET /api/users/session-events
+	// SSE: notifica em tempo real quando a sessão do usuário autenticado é revogada.
+	async sessionEvents(req: Request, res: Response) {
+		console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/users/session-events [SSE Conectado]`));
+		userService.streamSessionEvents(req, res);
+	}
+
+	// GET /api/users/online
+	async listOnlineUsers(req: Request, res: Response, next: NextFunction) {
+		console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/users/online`));
+		try {
+			const users = await userService.listOnlineUsers(req.user);
+			return CommonResponse.success(res, users, 200, `${users.length} usuário(s) online.`);
+		} catch (error) {
+			next(error);
+		}
+	}
+
+	// GET /api/users/presence-stream
+	async presenceStream(req: Request, res: Response) {
+		console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/users/presence-stream [SSE Conectado]`));
+		userService.streamPresenceEvents(req, res);
+	}
+
 	// PATCH /api/users/:id/admin
 	// Atualiza permissões (isAdmin) ou status (isActive). Restrito a administradores.
 	async adminUpdateUser(req: Request, res: Response, next: NextFunction) {
