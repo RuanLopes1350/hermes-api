@@ -53,8 +53,9 @@ export const auth = betterAuth({
 	session: {
 		// Sem isso, com secondaryStorage configurado o Better Auth para de
 		// escrever sessões no Postgres (passam a existir só no Redis) — quebra
-		// a revogação de sessão (deleteSessionsByUserId) e qualquer leitura de
-		// `session` direto no banco (ex.: contagem de sessões ativas do dashboard).
+		// a revogação de sessão via internalAdapter.deleteUserSessions (ver
+		// userService.revokeUserSessions) e qualquer leitura de `session` direto
+		// no banco (ex.: contagem de sessões ativas do dashboard).
 		storeSessionInDatabase: true,
 	},
 

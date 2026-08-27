@@ -1,5 +1,5 @@
 import { db } from '../config/dbConfig.js';
-import { user, session } from '../config/db/schema.js';
+import { user } from '../config/db/schema.js';
 import { eq, inArray } from 'drizzle-orm';
 import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
@@ -88,19 +88,6 @@ class UserRepository {
 			return updated ?? null;
 		} catch (error) {
 			throw parseDatabaseError(error, 'UserRepository.updateById');
-		}
-	}
-
-	// Revoga (deleta) todas as sessões ativas de um usuário no Postgres.
-	// Usado ao desativar uma conta, para não deixar sessões "válidas" órfãs no banco.
-	async deleteSessionsByUserId(userId: string) {
-		console.log(
-			chalk.magenta(`[${getTimestamp()}] [DB] [UserRepository] Revogando sessões: ${userId}`),
-		);
-		try {
-			return await db.delete(session).where(eq(session.userId, userId));
-		} catch (error) {
-			throw parseDatabaseError(error, 'UserRepository.deleteSessionsByUserId');
 		}
 	}
 

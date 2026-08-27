@@ -225,11 +225,20 @@ class UserService {
 		return updated;
 	}
 
-	// Revoga todas as sessões ativas de um usuário (Postgres) e publica o evento
+	// Revoga todas as sessões ativas de um usuário e publica o evento
 	// `session:revoked:<userId>` no Redis, para que uma conexão SSE aberta daquele
 	// usuário force o logout imediatamente, sem esperar a próxima requisição.
+	//
+	// IMPORTANTE: usamos o internalAdapter do Better Auth (não um DELETE cru via
+	// Drizzle) porque, com secondaryStorage configurado, cada sessão também fica
+	// cacheada no Redis — e getSession() consulta esse cache primeiro, sem cair
+	// pro Postgres se encontrar algo lá. Um DELETE direto no Postgres deixava as
+	// sessões já cacheadas continuarem válidas até o TTL expirar, mesmo com a
+	// conta banida (bypass de autorização). internalAdapter.deleteUserSessions
+	// limpa as duas fontes (Redis + Postgres) atomicamente.
 	async revokeUserSessions(userId: string, reason: SessionRevokedReason) {
-		await userRepository.deleteSessionsByUserId(userId);
+		const ctx = await auth.$context;
+		await ctx.internalAdapter.deleteUserSessions(userId);
 
 		const payload = JSON.stringify({ reason, at: new Date().toISOString() });
 		await redisPub.publish(`session:revoked:${userId}`, payload);
