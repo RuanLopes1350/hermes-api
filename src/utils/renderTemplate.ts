@@ -38,7 +38,10 @@ export async function renderTemplate(
 
 		return {
 			html,
-			errors: errors ? errors.map((e: any) => e.formattedMessage) : [],
+			// Não usamos e.formattedMessage: ele embute o path absoluto do servidor
+			// (ex: /home/usuario/projeto/hermes-api), vazando estrutura de arquivos
+			// da máquina para quem só está editando um template no navegador.
+			errors: errors ? errors.map((e: any) => `Linha ${e.line} (${e.tagName}) — ${e.message}`) : [],
 		};
 	} catch (error: any) {
 		console.error(

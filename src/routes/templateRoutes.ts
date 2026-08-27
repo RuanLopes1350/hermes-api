@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import templateController from '../controller/templateController.js';
 import { requireAuth } from '../middlewares/requireAuth.js';
-import { templateApiRateLimiter } from '../middlewares/rateLimitingMiddleware.js';
+import {
+	templateReadRateLimiter,
+	templateWriteRateLimiter,
+} from '../middlewares/rateLimitingMiddleware.js';
 
 const router = Router();
 
@@ -9,42 +12,42 @@ const router = Router();
 router.get(
 	'/templates',
 	requireAuth,
-	templateApiRateLimiter,
+	templateReadRateLimiter,
 	templateController.listAll.bind(templateController),
 );
 
 router.get(
 	'/templates/:id',
 	requireAuth,
-	templateApiRateLimiter,
+	templateReadRateLimiter,
 	templateController.getOneGlobal.bind(templateController),
 );
 
 router.get(
 	'/templates/:id/logs',
 	requireAuth,
-	templateApiRateLimiter,
+	templateReadRateLimiter,
 	templateController.getLogs.bind(templateController),
 );
 
 router.post(
 	'/templates',
 	requireAuth,
-	templateApiRateLimiter,
+	templateWriteRateLimiter,
 	templateController.create.bind(templateController),
 );
 
 router.patch(
 	'/templates/:id',
 	requireAuth,
-	templateApiRateLimiter,
+	templateWriteRateLimiter,
 	templateController.update.bind(templateController),
 );
 
 router.delete(
 	'/templates/:id',
 	requireAuth,
-	templateApiRateLimiter,
+	templateWriteRateLimiter,
 	templateController.remove.bind(templateController),
 );
 
@@ -52,7 +55,7 @@ router.delete(
 router.post(
 	'/templates/preview',
 	requireAuth,
-	templateApiRateLimiter,
+	templateReadRateLimiter,
 	templateController.preview.bind(templateController),
 );
 
@@ -60,7 +63,7 @@ router.post(
 router.post(
 	'/services/:serviceId/templates/preview',
 	requireAuth,
-	templateApiRateLimiter,
+	templateReadRateLimiter,
 	templateController.preview.bind(templateController),
 );
 

@@ -50,6 +50,14 @@ export const auth = betterAuth({
 		keyPrefix: 'hermes-auth:',
 	}),
 
+	session: {
+		// Sem isso, com secondaryStorage configurado o Better Auth para de
+		// escrever sessões no Postgres (passam a existir só no Redis) — quebra
+		// a revogação de sessão (deleteSessionsByUserId) e qualquer leitura de
+		// `session` direto no banco (ex.: contagem de sessões ativas do dashboard).
+		storeSessionInDatabase: true,
+	},
+
 	user: {
 		modelName: 'user',
 		additionalFields: {

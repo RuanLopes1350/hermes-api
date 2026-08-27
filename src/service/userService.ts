@@ -90,7 +90,20 @@ class UserService {
 				'FORBIDDEN',
 			);
 		}
-		return userRepository.findAll();
+		const users = await userRepository.findAll();
+		return users.map((u) => this.attachPresence(u));
+	}
+
+	// Anexa `online`/`lastSeenAt` (derivados do presenceService, em memória)
+	// a um registro de usuário vindo do Postgres. Ver comentário em
+	// presenceService.ts sobre por que isso substitui o session.updatedAt
+	// do Better Auth como sinal de "última vez visto".
+	private attachPresence<T extends { id: string }>(u: T) {
+		return {
+			...u,
+			online: presenceService.isOnline(u.id),
+			lastSeenAt: presenceService.getLastSeenAt(u.id) ?? null,
+		};
 	}
 
 	// Busca um usuário pelo ID.
@@ -121,7 +134,7 @@ class UserService {
 				'USER_NOT_FOUND',
 			);
 		}
-		return found;
+		return this.attachPresence(found);
 	}
 
 	// Atualiza nome e/ou imagem do usuário.
@@ -280,7 +293,8 @@ class UserService {
 		}
 
 		const onlineIds = presenceService.getOnlineUserIds();
-		return userRepository.findByIds(onlineIds);
+		const users = await userRepository.findByIds(onlineIds);
+		return users.map((u) => this.attachPresence(u));
 	}
 
 	// GET /api/users/presence-stream (SSE) - empurra "alguém entrou/saiu" em tempo real para os admins com o painel aberto. A checagem de admin acontece aqui

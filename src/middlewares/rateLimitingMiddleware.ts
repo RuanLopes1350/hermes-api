@@ -1,4 +1,13 @@
+import { Request } from 'express';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+
+// Chaveia por usuário autenticado quando disponível (requireAuth roda antes do
+// limiter nessas rotas). Cai para IP só se não houver sessão — evita que vários
+// usuários atrás do mesmo IP/NAT dividam uma única cota.
+function keyByUserOrIp(req: Request): string {
+	if (req.user?.id) return `user:${req.user.id}`;
+	return `ip:${ipKeyGenerator(req.ip ?? 'unknown')}`;
+}
 
 export const emailApiRateLimiter = rateLimit({
 	windowMs: 1 * 60 * 1000, // 1 minuto
@@ -15,11 +24,24 @@ export const emailApiRateLimiter = rateLimit({
 	legacyHeaders: false,
 });
 
-export const templateApiRateLimiter = rateLimit({
+// Leitura e preview: o editor de templates dispara isso automaticamente (a cada
+// keystroke com debounce, e a cada vez que a tela é aberta), então precisa de
+// uma cota bem mais folgada do que uma operação de escrita real.
+export const templateReadRateLimiter = rateLimit({
 	windowMs: 1 * 60 * 1000, // 1 minuto
-	max: 20, // limite de 20 requisições por usuário para operações pesadas
-	keyGenerator: (req) => `ip:${ipKeyGenerator(req.ip ?? 'unknown')}`,
-	message: 'Muitas requisições de template. Tente novamente em um minuto.',
+	max: 300,
+	keyGenerator: keyByUserOrIp,
+	message: 'Muitas requisições de leitura/preview de template. Tente novamente em instantes.',
+	standardHeaders: true,
+	legacyHeaders: false,
+});
+
+// Escrita (criar/editar/excluir): mantém uma cota mais conservadora.
+export const templateWriteRateLimiter = rateLimit({
+	windowMs: 1 * 60 * 1000, // 1 minuto
+	max: 30,
+	keyGenerator: keyByUserOrIp,
+	message: 'Muitas requisições de escrita de template. Tente novamente em um minuto.',
 	standardHeaders: true,
 	legacyHeaders: false,
 });

@@ -36,8 +36,17 @@ class TemplateService {
 			try {
 				mjml2html(htmlContent, { validationLevel: 'strict' });
 			} catch (err: any) {
+				// Não usamos err.message diretamente: o MJML monta essa string a partir
+				// de formattedMessage, que embute o path absoluto do servidor (vaza
+				// estrutura de arquivos/usuário da máquina pro navegador). err.errors
+				// traz os mesmos dados de forma estruturada, sem o path.
+				const detail = Array.isArray(err.errors)
+					? err.errors
+							.map((e: any) => `Linha ${e.line} (${e.tagName}) — ${e.message}`)
+							.join('; ')
+					: 'Verifique a sintaxe das tags MJML.';
 				throw new TemplateDomainError(
-					`O MJML informado é inválido: ${err.message}`,
+					`O MJML informado é inválido: ${detail}`,
 					HttpStatusCode.UNPROCESSABLE_ENTITY.code,
 					'INVALID_MJML',
 				);
