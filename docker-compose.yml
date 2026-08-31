@@ -27,7 +27,7 @@ services:
       
   api:
     profiles: ["prod"]
-    build: 
+    build:
       context: .
       dockerfile: dockerfile
     command: ["npm", "run", "start:api"]
@@ -51,13 +51,32 @@ services:
       - db
       - redis
       
-  worker:
+  email-worker:
     profiles: ["prod"]
     build:
       context: .
       dockerfile: dockerfile
     command: ["npm", "run", "start:worker"]
-    container_name: hermes_worker
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+  system-worker:
+    profiles: ["prod"]
+    build:
+      context: .
+      dockerfile: dockerfile
+    command: ["npm", "run", "start:system-worker"]
+    container_name: hermes_system_worker
     restart: always
     depends_on:
       - db
@@ -70,6 +89,28 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+  scaler:
+    profiles: ["prod"]
+    build:
+      context: .
+      dockerfile: dockerfile
+    command: ["npm", "run", "start:scaler"]
+    container_name: hermes_scaler
+    restart: always
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      # Permite ao scaler falar com o Docker do HOST (para rodar 'docker compose --scale')
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Este diretório (onde está o docker-compose.yml + .env) montado dentro do scaler, como /deploy — é como ele acha o compose file pra escalar.
+      - .:/deploy:ro
 
   frontend:
     profiles: ["prod"]
@@ -89,4 +130,6 @@ services:
 
 volumes:
   pgdata:
+    name: hermes_pgdata
   redisdata:
+    name: hermes_redisdata

@@ -1,9 +1,7 @@
 import chalk from 'chalk';
 import { dbConnect } from './config/dbConfig.js';
 import { getTimestamp } from './utils/helpers/dateUtils.js';
-// importar o arquivo do worker para inicializar a instância do BullMQ
-import './queue/emailWorker.js';
-import { setupSystemJobs } from './queue/systemWorker.js';
+import { emailWorker } from './queue/emailWorker.js';
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
@@ -27,9 +25,6 @@ async function startWorker() {
 				`[${getTimestamp()}] [WORKER] Banco de dados conectado. Fila pronta para processar!`,
 			),
 		);
-
-		// Inicializa os jobs agendados de sistema (como a rotação de API Keys)
-		await setupSystemJobs();
 	} catch (error) {
 		console.error(
 			chalk.red.bold(`[${getTimestamp()}] [ERROR] Erro ao conectar ao banco de dados: ${error}`),
@@ -44,6 +39,10 @@ const gracefulShutdown = async (signal: string) => {
 		chalk.yellow.bold(`\n[${getTimestamp()}] [WORKER] Recebido sinal ${signal}. Encerrando...`),
 	);
 	try {
+		// Espera o job em andamento terminar antes de derrubar a conexão com o banco.
+		// Crítico agora que o worker escala pra baixo rotineiramente (não é mais só
+		// um redeploy manual raro).
+		await emailWorker.close();
 		await dbConnect.disconnect();
 		console.log(chalk.green.bold(`[${getTimestamp()}] [DB] Conexão encerrada.`));
 	} catch (error) {

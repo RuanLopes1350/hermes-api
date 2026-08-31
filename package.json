@@ -13,6 +13,8 @@
     "docker": "docker compose up --build --force-recreate -d",
     "start:api": "node dist/server.js",
     "start:worker": "node dist/worker.js",
+    "start:system-worker": "node dist/system.js",
+    "start:scaler": "node dist/scaler.js",
     "send": "",
     "clear": "rm -rf dist && rm -rf node_modules && npm install",
     "format:fix": "prettier --write \"src/**/*.{ts,js,json}\"",

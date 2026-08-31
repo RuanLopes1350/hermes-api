@@ -11,6 +11,7 @@ import swaggerUi from 'swagger-ui-express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { detectAndPublishMaxWorkers } from './utils/detectMachineCapacity.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -71,7 +72,7 @@ app.use((req, res, next) => {
 		}
 		console.log(
 			`${chalk.gray(`[${getTimestamp()}]`)} [${req.method}] ${req.originalUrl} - ` +
-			`${statusColor(res.statusCode)} ${chalk.gray(`${ms}ms`)}`,
+				`${statusColor(res.statusCode)} ${chalk.gray(`${ms}ms`)}`,
 		);
 	});
 	next();
@@ -144,6 +145,7 @@ async function showLogo() {
 async function startServer() {
 	try {
 		await dbConnect.connect();
+		await detectAndPublishMaxWorkers();
 		app.listen(PORT, () => {
 			console.log(chalk.green.bold(`[${getTimestamp()}] [SUCCESS] Hermes API na porta ${PORT}`));
 		});
