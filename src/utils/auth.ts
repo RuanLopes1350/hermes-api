@@ -81,7 +81,7 @@ export const auth = betterAuth({
 
 	emailAndPassword: {
 		enabled: true,
-		autoSignIn: nodeEnv === 'development',
+		autoSignIn: true,
 	},
 
 	socialProviders: {

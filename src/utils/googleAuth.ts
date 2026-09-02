@@ -1,4 +1,4 @@
-import { google } from 'googleapis';
+import { OAuth2Client } from 'google-auth-library';
 import dotenv from 'dotenv';
 
 dotenv.config({ quiet: true });
@@ -8,11 +8,12 @@ dotenv.config({ quiet: true });
 
 // Cria uma instância do cliente OAuth2 do Google com credenciais dinâmicas.
 export function createDynamicOAuth2Client(clientId: string, clientSecret: string) {
-	const redirectUri = `${process.env.AUTH_BASE_URL || 'http://localhost:3001'}/api/callback/google/gmail`;
+	const baseUrl = (process.env.AUTH_BASE_URL || 'http://localhost:3001').replace(/\/$/, '');
+	const redirectUri = `${baseUrl}/api/callback/google/gmail`;
 
 	console.log(`[GoogleAuth] Gerando cliente com Redirect URI: ${redirectUri}`);
 
-	return new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+	return new OAuth2Client(clientId, clientSecret, redirectUri);
 }
 
 // Gera a URL de autorização para o usuário conceder permissão de envio de e-mail.

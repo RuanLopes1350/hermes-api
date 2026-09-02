@@ -32,8 +32,8 @@ async function getMaxWorkers(): Promise<number> {
 }
 
 async function computeDesiredReplicas(): Promise<number> {
-	const { waiting, active } = await emailQueue.getJobCounts('waiting', 'active');
-	const pending = waiting + active;
+	const { waiting, active, prioritized } = await emailQueue.getJobCounts('waiting', 'active', 'prioritized');
+	const pending = waiting + active + (prioritized || 0);
 	const max = await getMaxWorkers();
 
 	if (pending === 0) {

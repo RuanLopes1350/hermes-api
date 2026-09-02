@@ -37,4 +37,10 @@ router.patch('/users/:id/admin', requireAuth, userController.adminUpdateUser.bin
 // DELETE /users/:id — deleta (admin only — verificação no Service)
 router.delete('/users/:id', requireAuth, userController.deleteUser.bind(userController));
 
+// GET /users/:id/sessions — lista as sessões ativas (admin ou o próprio usuário)
+router.get('/users/:id/sessions', requireAuth, userController.listSessions.bind(userController));
+
+// DELETE /users/:id/sessions/:token — revoga uma sessão específica (admin ou próprio)
+router.delete('/users/:id/sessions/:token', requireAuth, userController.revokeSession.bind(userController));
+
 export default router;

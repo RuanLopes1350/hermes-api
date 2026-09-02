@@ -57,14 +57,21 @@ class SSEManager {
 	}
 
 	private async fetchMetrics() {
-		const [waiting, active, completed, failed, delayed] = await Promise.all([
+		const [waiting, active, completed, failed, delayed, prioritizedCounts] = await Promise.all([
 			emailQueue.getWaitingCount(),
 			emailQueue.getActiveCount(),
 			emailQueue.getCompletedCount(),
 			emailQueue.getFailedCount(),
 			emailQueue.getDelayedCount(),
+			emailQueue.getJobCounts('prioritized'),
 		]);
-		return { waiting, active, completed, failed, delayed };
+		return { 
+			waiting: waiting + (prioritizedCounts.prioritized || 0), 
+			active, 
+			completed, 
+			failed, 
+			delayed 
+		};
 	}
 
 	private async broadcastMetrics() {
@@ -146,11 +153,14 @@ class DashboardService {
 		]);
 
 		// 2. Status da Fila (Redis/BullMQ)
-		const [waiting, active, queueFailed] = await Promise.all([
+		const [waiting, active, queueFailed, prioritizedCounts] = await Promise.all([
 			emailQueue.getWaitingCount(),
 			emailQueue.getActiveCount(),
 			emailQueue.getFailedCount(),
+			emailQueue.getJobCounts('prioritized'),
 		]);
+
+		const totalWaiting = waiting + (prioritizedCounts.prioritized || 0);
 
 		// 3. Today vs Yesterday counts
 		const todayDeltaData = await db.execute(sql`
@@ -283,7 +293,7 @@ class DashboardService {
 				yesterday: Number((todayDeltaData.rows[0] as any)?.yesterday || 0),
 			},
 			queue: {
-				waiting,
+				waiting: totalWaiting,
 				active,
 				failed: queueFailed,
 			},

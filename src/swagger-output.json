@@ -539,6 +539,14 @@
                     "additionalProperties": {
                       "nullable": true
                     }
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": [
+                      "high",
+                      "medium",
+                      "low"
+                    ]
                   }
                 },
                 "required": [
@@ -603,6 +611,14 @@
                       "additionalProperties": {
                         "nullable": true
                       }
+                    },
+                    "priority": {
+                      "type": "string",
+                      "enum": [
+                        "high",
+                        "medium",
+                        "low"
+                      ]
                     }
                   },
                   "required": [

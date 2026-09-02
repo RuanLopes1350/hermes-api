@@ -27,6 +27,7 @@ services:
       
   api:
     profiles: ["prod"]
+    image: ${DOCKERHUB_USER}/hermes-api:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: dockerfile
@@ -53,6 +54,7 @@ services:
       
   email-worker:
     profiles: ["prod"]
+    image: ${DOCKERHUB_USER}/hermes-api:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: dockerfile
@@ -72,6 +74,7 @@ services:
 
   system-worker:
     profiles: ["prod"]
+    image: ${DOCKERHUB_USER}/hermes-api:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: dockerfile
@@ -92,6 +95,7 @@ services:
 
   scaler:
     profiles: ["prod"]
+    image: ${DOCKERHUB_USER}/hermes-api:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: dockerfile
@@ -114,11 +118,12 @@ services:
 
   frontend:
     profiles: ["prod"]
+    image: ${DOCKERHUB_USER}/hermes-front:${IMAGE_TAG:-latest}
     build:
       context: ../hermes-front
       dockerfile: dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://api.hermes.qa.fslab.dev}
     container_name: hermes_front
     restart: always
     ports:
@@ -127,6 +132,7 @@ services:
       - api
     environment:
       - NODE_ENV=production
+      - INTERNAL_API_URL=http://api:3001
 
 volumes:
   pgdata:

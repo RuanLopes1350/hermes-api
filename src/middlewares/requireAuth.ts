@@ -1,46 +1,55 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request as ExpressRequest, Response as ExpressResponse, NextFunction } from 'express';
 import { fromNodeHeaders } from 'better-auth/node';
 import chalk from 'chalk';
 import { auth } from '../utils/auth.js';
 import CommonResponse from '../utils/helpers/commonResponse.js';
 import HttpStatusCode from '../utils/helpers/httpStatusCode.js';
-// Se você tiver o UserType exportado em algum lugar, pode importar aqui.
-// Caso contrário, a interface abaixo resolve perfeitamente.
 
-// Tenta resolver sessão usando os headers formatados para o padrão Web
-export async function getSession(req: Request) {
-	return auth.api.getSession({
-		headers: fromNodeHeaders(req.headers),
-	});
+export async function getSession(req: ExpressRequest) {
+	try {
+		const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+		const host = req.headers['x-forwarded-host'] || req.headers.host;
+		const url = `${protocol}://${host}${req.originalUrl}`;
+
+		const webReq = new Request(url, {
+			method: req.method,
+			headers: fromNodeHeaders(req.headers),
+		});
+
+		console.log(`[DEBUG getSession] URL construída: ${url}`);
+		console.log(`[DEBUG getSession] Cookie enviado:`, webReq.headers.get('cookie')?.substring(0, 50) + '...');
+
+		const result = await auth.api.getSession({
+			request: webReq,
+			headers: webReq.headers,
+		});
+
+		console.log(`[DEBUG getSession] Result type:`, result instanceof Response ? `Response (${result.status})` : typeof result);
+		
+		if (result instanceof Response) {
+			if (result.status !== 200) {
+				console.log(`[DEBUG getSession] Response não-200. Body:`, await result.text().catch(() => ''));
+				return null;
+			}
+			return await result.json();
+		}
+
+		console.log(`[DEBUG getSession] Result (se null, falhou):`, result ? 'SUCCESS' : 'NULL');
+		return result;
+	} catch (err) {
+		console.error('[requireAuth] Erro:', err);
+		return null;
+	}
 }
 
 // Garante que rotas protegidas só avancem com sessão válida
-export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function requireAuth(req: ExpressRequest, res: ExpressResponse, next: NextFunction): Promise<void> {
 	try {
-		// A chamada principal com fromNodeHeaders geralmente já pega Cookies e Bearer Tokens
-		let sessionData = await getSession(req);
+		const sessionData = await getSession(req);
 
-		// Fallback de segurança (sua lógica original mantida e simplificada)
-		if (!sessionData?.user || !sessionData?.session) {
-			const authHeader = req.headers.authorization;
-			const cookieHeader = req.headers.cookie;
-
-			if (authHeader) {
-				sessionData = await auth.api.getSession({
-					headers: new Headers({ authorization: authHeader }),
-				});
-			} else if (cookieHeader) {
-				const headers = new Headers({ cookie: cookieHeader });
-				if (req.headers.origin) headers.append('origin', req.headers.origin as string);
-				sessionData = await auth.api.getSession({ headers });
-			}
-		}
-
-		// Se após as tentativas não houver sessão, bloqueia com 401
 		if (!sessionData?.user || !sessionData?.session) {
 			console.warn(chalk.yellow(`[requireAuth] Acesso negado. Rota: ${req.originalUrl}`));
 
-			// Aqui usamos return para encerrar a execução imediatamente
 			CommonResponse.error(
 				res,
 				HttpStatusCode.UNAUTHORIZED.code,
@@ -52,7 +61,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 			return;
 		}
 
-		// 2. Injeta os dados fortemente tipados no request para os Controllers usarem
+		// Injeta os dados fortemente tipados no request para os Controllers usarem
 		req.user = {
 			...sessionData.user,
 			role: (sessionData.user.role as 'super_admin' | 'admin' | 'user') ?? 'user',
@@ -75,11 +84,9 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 			return;
 		}
 
-		// Passa para o próximo middleware ou controller
 		next();
 	} catch (error) {
 		console.error(chalk.red('[requireAuth] Erro interno ao verificar sessão:'), error);
-		// 3. Deixamos o Error Handler Global lidar com o erro 500
 		next(error);
 	}
 }

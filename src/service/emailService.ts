@@ -126,7 +126,12 @@ class EmailService {
 			);
 		}
 
-		const parsedDataArray = createBulkEmailSchema.parse(data);
+		// Suporta tanto Array direto `[...]` quanto objeto `{ emails: [...] }` enviado pelo SDK
+		const incomingData = typeof data === 'object' && data !== null && 'emails' in data && Array.isArray((data as any).emails) 
+			? (data as any).emails 
+			: data;
+			
+		const parsedDataArray = createBulkEmailSchema.parse(incomingData);
 
 		const serviceData = await serviceRepository.findById(serviceId);
 		const defaultPriority = (serviceData?.settings as any)?.defaultPriority || 'medium';

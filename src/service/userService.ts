@@ -366,6 +366,54 @@ class UserService {
 		);
 		return { id: deleted.id };
 	}
+
+	async listSessions(targetId: string, currentUser: UserType) {
+		// Apenas admin ou o próprio usuário podem listar as sessões
+		if (currentUser.role !== 'admin' && currentUser.role !== 'super_admin' && currentUser.id !== targetId) {
+			throw new UserServiceError(
+				'Você não tem permissão para listar as sessões deste usuário.',
+				HttpStatusCode.FORBIDDEN.code,
+				'FORBIDDEN',
+			);
+		}
+
+		// Usar db nativamente para evitar problemas de tipos com o internalAdapter
+		const { db } = await import('../config/dbConfig.js');
+		const { session } = await import('../config/db/schema.js');
+		const { eq } = await import('drizzle-orm');
+		
+		const sessions = await db.select().from(session).where(eq(session.userId, targetId));
+		
+		// Remove informações sensíveis se houver
+		return sessions.map((s: any) => ({
+			token: s.token,
+			ipAddress: s.ipAddress,
+			userAgent: s.userAgent,
+			createdAt: s.createdAt,
+			updatedAt: s.updatedAt,
+			expiresAt: s.expiresAt,
+			isCurrent: false // Frontend cruza com o próprio token pra mostrar a "Sessão Atual"
+		}));
+	}
+
+	async revokeSession(targetId: string, token: string, currentUser: UserType) {
+		if (currentUser.role !== 'admin' && currentUser.role !== 'super_admin' && currentUser.id !== targetId) {
+			throw new UserServiceError(
+				'Você não tem permissão para revogar esta sessão.',
+				HttpStatusCode.FORBIDDEN.code,
+				'FORBIDDEN',
+			);
+		}
+
+		const ctx = await auth.$context;
+		await ctx.internalAdapter.deleteSession(token);
+
+		console.log(
+			chalk.yellow.bold(
+				`[${getTimestamp()}] [INFO] [UserService] Sessão específica revogada para o usuário: ${targetId}`,
+			),
+		);
+	}
 }
 
 export default new UserService();
