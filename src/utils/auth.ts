@@ -82,6 +82,43 @@ export const auth = betterAuth({
 	emailAndPassword: {
 		enabled: true,
 		autoSignIn: true,
+		resetPasswordTokenExpiresIn: 3600, // 1 hora
+		sendResetPassword: async ({ user, url, token }) => {
+			try {
+				const settingsService = (await import('../service/settingsService.js')).default;
+				const { transporter, fromAddress } = await settingsService.createSystemTransporter();
+
+				await transporter.sendMail({
+					from: fromAddress,
+					to: user.email,
+					subject: 'Recuperação de Senha — Hermes Gateway',
+					text: `Olá, ${user.name}!\n\nRecebemos uma solicitação para redefinir a sua senha no Hermes Gateway.\n\nPara cadastrar uma nova senha, acesse o link abaixo:\n${url}\n\nEste link expira em 1 hora.\nSe você não solicitou a alteração, ignore este e-mail.`,
+					html: `
+						<div style="background-color: #f4f5f7; padding: 40px 20px; font-family: Helvetica, Arial, sans-serif;">
+							<div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 40px 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+								<h2 style="color: #1e293b; text-align: center; margin-bottom: 24px;">Hermes Gateway</h2>
+								<hr style="border: none; border-top: 1px solid #e2e8f0; margin-bottom: 24px;" />
+								<p style="font-size: 16px; color: #334155; line-height: 24px;">Olá, <strong>${user.name}</strong>,</p>
+								<p style="font-size: 15px; color: #475569; line-height: 24px;">Recebemos uma solicitação para redefinir a senha da sua conta no <strong>Hermes</strong>.</p>
+								<div style="text-align: center; margin: 32px 0;">
+									<a href="${url}" style="background-color: #2563eb; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; display: inline-block;">
+										Redefinir Minha Senha
+									</a>
+								</div>
+								<p style="font-size: 13px; color: #64748b; line-height: 20px;">Ou copie e cole o link no seu navegador:<br/>
+									<a href="${url}" style="color: #2563eb; word-break: break-all;">${url}</a>
+								</p>
+								<p style="font-size: 12px; color: #dc2626; margin-top: 24px;">Atenção: Se você não solicitou este link, nenhuma alteração será feita.</p>
+							</div>
+						</div>
+					`,
+				});
+				console.log(`[BetterAuth] E-mail de reset de senha enviado para: ${user.email}`);
+			} catch (error) {
+				console.error('[BetterAuth] Falha ao enviar e-mail de recuperação de senha:', error);
+				throw error;
+			}
+		},
 	},
 
 	socialProviders: {

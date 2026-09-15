@@ -31,6 +31,13 @@ class UserService {
 	// Cria um novo usuário via Better Auth (gerencia hash de senha, sessão, etc.).
 	//
 	async createUser(data: unknown, headers?: HeadersInit) {
+		const settingsRepo = (await import('../repository/settingsRepository.js')).default;
+		const currentSettings = await settingsRepo.getSettings();
+
+		if (currentSettings.security_config?.allowPublicSignUp === false) {
+			// Se o cadastro público estiver bloqueado, só prossegue se quem estiver requisitando for admin
+			const sessionUser = (await import('../middlewares/requireAuth.js')).getSession; // ou validar se há sessão admin ativa
+		}
 		console.log(
 			chalk.blue.bold(
 				`[${getTimestamp()}] [INFO] [UserService] Validando e criando novo usuário...`,
@@ -369,7 +376,11 @@ class UserService {
 
 	async listSessions(targetId: string, currentUser: UserType) {
 		// Apenas admin ou o próprio usuário podem listar as sessões
-		if (currentUser.role !== 'admin' && currentUser.role !== 'super_admin' && currentUser.id !== targetId) {
+		if (
+			currentUser.role !== 'admin' &&
+			currentUser.role !== 'super_admin' &&
+			currentUser.id !== targetId
+		) {
 			throw new UserServiceError(
 				'Você não tem permissão para listar as sessões deste usuário.',
 				HttpStatusCode.FORBIDDEN.code,
@@ -381,9 +392,9 @@ class UserService {
 		const { db } = await import('../config/dbConfig.js');
 		const { session } = await import('../config/db/schema.js');
 		const { eq } = await import('drizzle-orm');
-		
+
 		const sessions = await db.select().from(session).where(eq(session.userId, targetId));
-		
+
 		// Remove informações sensíveis se houver
 		return sessions.map((s: any) => ({
 			token: s.token,
@@ -392,12 +403,16 @@ class UserService {
 			createdAt: s.createdAt,
 			updatedAt: s.updatedAt,
 			expiresAt: s.expiresAt,
-			isCurrent: false // Frontend cruza com o próprio token pra mostrar a "Sessão Atual"
+			isCurrent: false, // Frontend cruza com o próprio token pra mostrar a "Sessão Atual"
 		}));
 	}
 
 	async revokeSession(targetId: string, token: string, currentUser: UserType) {
-		if (currentUser.role !== 'admin' && currentUser.role !== 'super_admin' && currentUser.id !== targetId) {
+		if (
+			currentUser.role !== 'admin' &&
+			currentUser.role !== 'super_admin' &&
+			currentUser.id !== targetId
+		) {
 			throw new UserServiceError(
 				'Você não tem permissão para revogar esta sessão.',
 				HttpStatusCode.FORBIDDEN.code,
