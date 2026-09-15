@@ -267,7 +267,7 @@ class SettingsService {
 		if (mail) {
 			mail.refreshToken = encryptPasskey(tokens.refresh_token);
 			mail.isConfigured = true;
-			await settingsRepository.updateMailConfig(mail, 'system');
+			await settingsRepository.updateMailConfig(mail, null);
 		}
 
 		const frontendUrl = (process.env.AUTH_TRUSTED_ORIGINS || 'http://localhost:3000')

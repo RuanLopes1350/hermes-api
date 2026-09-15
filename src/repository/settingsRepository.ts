@@ -50,18 +50,24 @@ class SettingsRepository {
 
 	async updateMailConfig(
 		mailConfig: SystemMailConfig,
-		userId: string,
+		userId?: string | null,
 	): Promise<SystemSettingsType> {
 		try {
 			await this.getSettings(); // Garante que a linha existe
 
+			const updateData: any = {
+				mail_config: mailConfig,
+				updatedAt: new Date(),
+			};
+
+			// Só atualiza o updatedBy se for passado um ID de usuário válido
+			if (userId !== undefined) {
+				updateData.updatedBy = userId;
+			}
+
 			const [updated] = await db
 				.update(system_settings)
-				.set({
-					mail_config: mailConfig,
-					updatedAt: new Date(),
-					updatedBy: userId,
-				})
+				.set(updateData)
 				.where(eq(system_settings.id, SINGLETON_ID))
 				.returning();
 
