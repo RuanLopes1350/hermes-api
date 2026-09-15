@@ -24,6 +24,7 @@ import templateRouter from './routes/templateRoutes.js';
 import emailRouter from './routes/emailRoutes.js';
 import dashboardRouter from './routes/dashboardRoutes.js';
 import notificationRouter from './routes/notificationRoutes.js';
+import settingsRouter from './routes/settingsRoutes.js';
 import { getTimestamp } from './utils/helpers/dateUtils.js';
 
 dotenv.config({ quiet: true });
@@ -111,6 +112,7 @@ app.use('/api', credentialRouter);
 app.use('/api', templateRouter);
 app.use('/api', emailRouter);
 app.use('/api', dashboardRouter);
+app.use('/api', settingsRouter);
 app.use('/api/notifications', notificationRouter);
 
 app.use(errorHandler);

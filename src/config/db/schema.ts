@@ -246,3 +246,11 @@ export const notification = pgTable(
 		isReadIdx: index('notification_is_read_idx').on(table.is_read),
 	}),
 );
+
+export const system_settings = pgTable('system_settings', {
+	id: text('id').primaryKey().notNull().default('singleton'),
+	mail_config: jsonb('mail_config'),
+	security_config: jsonb('security_config'),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+	updatedBy: text('updated_by').references(() => user.id, { onDelete: 'set null' }),
+});

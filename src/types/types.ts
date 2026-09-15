@@ -136,3 +136,34 @@ export type EmailType = {
 	sent_at?: Date | null;
 	createdAt?: Date;
 };
+
+export type SystemMailConfig = {
+	provider: 'smtp' | 'google_oauth2';
+	fromName: string;
+	fromEmail: string;
+	// campos SMTP
+	smtpHost?: string;
+	smtpPort?: number;
+	smtpSecure?: boolean;
+	login?: string;
+	passkey?: string;
+	// campos google OAuth2
+	clientId?: string;
+	clientSecret?: string;
+	refreshToken?: string;
+	isConfigured: boolean;
+	lastTestedAt?: string | null;
+};
+
+export type SystemSecurityConfig = {
+	resetTokenExpiresInMinutes: number; // Padrão: 60 minutos
+	allowPublicSignUp: boolean; // Padrão: false
+};
+
+export type SystemSettingsType = {
+	id: string;
+	mail_config: SystemMailConfig | null;
+	security_config: SystemSecurityConfig | null;
+	updatedAt: Date;
+	updatedBy?: string | null;
+};
