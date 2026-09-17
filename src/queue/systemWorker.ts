@@ -144,9 +144,8 @@ export const systemWorker = new Worker(
 				});
 
 				// === GATILHO DE NOTIFICAÇÃO ===
-				const notificationRepository = (await import('../repository/notificationRepository.js'))
-					.default;
-				await notificationRepository.insert({
+				const notificationService = (await import('../service/notificationService.js')).default;
+				await notificationService.createNotification({
 					service_id: serviceId,
 					type: 'warning',
 					title: 'Falha na Rotação Automática',
@@ -177,9 +176,8 @@ export const systemWorker = new Worker(
 			});
 
 			// === GATILHO DE NOTIFICAÇÃO (Sucesso) ===
-			const notificationRepository = (await import('../repository/notificationRepository.js'))
-				.default;
-			await notificationRepository.insert({
+			const notificationService = (await import('../service/notificationService.js')).default;
+			await notificationService.createNotification({
 				service_id: serviceId,
 				type: 'success',
 				title: 'Chave Rotacionada',

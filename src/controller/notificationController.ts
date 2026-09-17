@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import notificationService from '../service/notificationService.js';
+import { sendManualNotificationSchema } from '../utils/validation/notificationValidation.js';
 
 class NotificationController {
 	async getMyUnread(req: Request, res: Response, next: NextFunction) {
@@ -59,6 +60,59 @@ class NotificationController {
 
 			const result = await notificationService.markAllAsRead(userId);
 			res.status(200).json(result);
+		} catch (error) {
+			next(error);
+		}
+	}
+
+	async stream(req: Request, res: Response) {
+		const userId = req.user?.id;
+		if (!userId) {
+			res.status(401).end();
+			return;
+		}
+
+		res.setHeader('Content-Type', 'text/event-stream');
+		res.setHeader('Cache-Control', 'no-cache');
+		res.setHeader('Connection', 'keep-alive');
+		res.flushHeaders();
+
+		notificationService.addListener(userId, res);
+
+		const keepAlive = setInterval(() => {
+			try {
+				res.write(': ping\n\n');
+			} catch {
+				// Ignora se o socket já fechou
+			}
+		}, 30000);
+
+		req.on('close', () => {
+			clearInterval(keepAlive);
+			notificationService.removeListener(userId, res);
+			res.end();
+		});
+	}
+
+	async sendManualNotification(req: Request, res: Response, next: NextFunction) {
+		try {
+			const userRole = req.user?.role;
+			if (userRole !== 'super_admin' && userRole !== 'admin') {
+				return res.status(403).json({ error: 'Acesso restrito a administradores.' });
+			}
+
+			const parsed = sendManualNotificationSchema.parse(req.body);
+			const newNotif = await notificationService.createNotification({
+				user_id: parsed.userId || null,
+				type: parsed.type,
+				title: parsed.title,
+				message: parsed.message,
+			});
+
+			res.status(201).json({
+				message: 'Notificação enviada com sucesso!',
+				data: newNotif,
+			});
 		} catch (error) {
 			next(error);
 		}

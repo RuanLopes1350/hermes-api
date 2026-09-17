@@ -181,6 +181,23 @@ class ServiceRepository {
 			throw parseDatabaseError(error, 'ServiceRepository.softDeleteById');
 		}
 	}
+
+	// Criado para SSE de notificações
+	async findMembers(serviceId: string) {
+		console.log(
+			chalk.magenta(
+				`[${getTimestamp}] [DB] [ServiceRepository] Buscando membros do serviço: ${serviceId}`,
+			),
+		);
+		try {
+			return await db
+				.select({ userId: service_member.user_id, role: service_member.role })
+				.from(service_member)
+				.where(eq(service_member.service_id, serviceId));
+		} catch (error) {
+			throw parseDatabaseError(error, 'ServiceRepository.findMembers');
+		}
+	}
 }
 
 export default new ServiceRepository();

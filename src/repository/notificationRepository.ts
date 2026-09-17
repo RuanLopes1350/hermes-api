@@ -1,6 +1,6 @@
 import { db } from '../config/dbConfig.js';
-import { desc, eq, and, or, inArray } from 'drizzle-orm';
-import { notification } from '../config/db/schema.js';
+import { desc, eq, and, or, inArray, isNull } from 'drizzle-orm';
+import { notification, user } from '../config/db/schema.js';
 import { v4 as uuidv4 } from 'uuid';
 import chalk from 'chalk';
 import { getTimestamp } from '../utils/helpers/dateUtils.js';
@@ -41,9 +41,19 @@ class NotificationRepository {
 				serviceIds.length > 0
 					? and(
 							eq(notification.is_read, false),
-							or(eq(notification.user_id, userId), inArray(notification.service_id, serviceIds)),
+							or(
+								eq(notification.user_id, userId),
+								isNull(notification.user_id), // Notificações globais (broadcast)
+								inArray(notification.service_id, serviceIds),
+							),
 						)
-					: and(eq(notification.is_read, false), eq(notification.user_id, userId));
+					: and(
+							eq(notification.is_read, false),
+							or(
+								eq(notification.user_id, userId),
+								isNull(notification.user_id), // Notificações globais (broadcast)
+							),
+						);
 
 			return await db
 				.select()
@@ -59,8 +69,21 @@ class NotificationRepository {
 	async findAllAdmin(limit: number = 50, offset: number = 0) {
 		try {
 			return await db
-				.select()
+				.select({
+					id: notification.id,
+					service_id: notification.service_id,
+					user_id: notification.user_id,
+					type: notification.type,
+					title: notification.title,
+					message: notification.message,
+					is_read: notification.is_read,
+					createdAt: notification.createdAt,
+					// Dados do destinatário (se for direcionado)
+					targetUserName: user.name,
+					targetUserEmail: user.email,
+				})
 				.from(notification)
+				.leftJoin(user, eq(notification.user_id, user.id))
 				.orderBy(desc(notification.createdAt))
 				.limit(limit)
 				.offset(offset);
