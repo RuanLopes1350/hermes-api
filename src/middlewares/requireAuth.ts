@@ -17,18 +17,27 @@ export async function getSession(req: ExpressRequest) {
 		});
 
 		console.log(`[DEBUG getSession] URL construída: ${url}`);
-		console.log(`[DEBUG getSession] Cookie enviado:`, webReq.headers.get('cookie')?.substring(0, 50) + '...');
+		console.log(
+			`[DEBUG getSession] Cookie enviado:`,
+			webReq.headers.get('cookie')?.substring(0, 50) + '...',
+		);
 
 		const result = await auth.api.getSession({
 			request: webReq,
 			headers: webReq.headers,
 		});
 
-		console.log(`[DEBUG getSession] Result type:`, result instanceof Response ? `Response (${result.status})` : typeof result);
-		
+		console.log(
+			`[DEBUG getSession] Result type:`,
+			result instanceof Response ? `Response (${result.status})` : typeof result,
+		);
+
 		if (result instanceof Response) {
 			if (result.status !== 200) {
-				console.log(`[DEBUG getSession] Response não-200. Body:`, await result.text().catch(() => ''));
+				console.log(
+					`[DEBUG getSession] Response não-200. Body:`,
+					await result.text().catch(() => ''),
+				);
 				return null;
 			}
 			return await result.json();
@@ -43,7 +52,11 @@ export async function getSession(req: ExpressRequest) {
 }
 
 // Garante que rotas protegidas só avancem com sessão válida
-export async function requireAuth(req: ExpressRequest, res: ExpressResponse, next: NextFunction): Promise<void> {
+export async function requireAuth(
+	req: ExpressRequest,
+	res: ExpressResponse,
+	next: NextFunction,
+): Promise<void> {
 	try {
 		const sessionData = await getSession(req);
 

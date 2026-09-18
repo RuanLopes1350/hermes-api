@@ -41,6 +41,10 @@ router.delete('/users/:id', requireAuth, userController.deleteUser.bind(userCont
 router.get('/users/:id/sessions', requireAuth, userController.listSessions.bind(userController));
 
 // DELETE /users/:id/sessions/:token — revoga uma sessão específica (admin ou próprio)
-router.delete('/users/:id/sessions/:token', requireAuth, userController.revokeSession.bind(userController));
+router.delete(
+	'/users/:id/sessions/:token',
+	requireAuth,
+	userController.revokeSession.bind(userController),
+);
 
 export default router;

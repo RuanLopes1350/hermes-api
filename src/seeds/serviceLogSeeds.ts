@@ -6,7 +6,12 @@ import { v4 as uuidv4 } from 'uuid';
 // mesmos nomes de ação que serviceService.ts e credentialService.ts geram em
 // produção, só que aqui inseridos direto (bypassa o repository, que sempre
 // usa defaultNow() e não deixa datar o passado).
-export async function seedServiceLogs(services: any[], members: any[], users: any[], credentials: any[]) {
+export async function seedServiceLogs(
+	services: any[],
+	members: any[],
+	users: any[],
+	credentials: any[],
+) {
 	const userById = new Map(users.map((u) => [u.id, u]));
 	const rows: (typeof service_log.$inferInsert)[] = [];
 

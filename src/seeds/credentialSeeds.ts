@@ -231,9 +231,7 @@ export async function seedCredentials(users: any[], services: any[]) {
 		.returning();
 
 	console.log(
-		chalk.cyan(
-			`[Seeds] Exemplo de API Key funcional (${rowsToInsert[0].name}): ${sampleKey}`,
-		),
+		chalk.cyan(`[Seeds] Exemplo de API Key funcional (${rowsToInsert[0].name}): ${sampleKey}`),
 	);
 
 	return insertedCredentials;

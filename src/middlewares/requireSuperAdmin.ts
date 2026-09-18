@@ -22,4 +22,3 @@ export function requireSuperAdmin(req: Request, res: Response, next: NextFunctio
 	}
 	next();
 }
-

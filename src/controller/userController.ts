@@ -138,7 +138,11 @@ class UserController {
 	async revokeSession(req: Request, res: Response, next: NextFunction) {
 		const id = String(req.params.id);
 		const token = String(req.params.token);
-		console.log(chalk.cyan(`[${getTimestamp()}] [DELETE] /api/users/${id}/sessions/${token.substring(0, 8)}...`));
+		console.log(
+			chalk.cyan(
+				`[${getTimestamp()}] [DELETE] /api/users/${id}/sessions/${token.substring(0, 8)}...`,
+			),
+		);
 		try {
 			await userService.revokeSession(id, token, req.user!);
 			return CommonResponse.success(res, null, 200, 'Sessão revogada com sucesso.');

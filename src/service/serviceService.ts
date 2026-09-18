@@ -54,10 +54,10 @@ class ServiceService {
 		const userId = currentUser.id;
 		console.log(
 			chalk.blue.bold(
-				`[${getTimestamp()}] [INFO] [ServiceService] Listando serviços do usuário: ${userId} (isAdmin: ${(currentUser.role === 'super_admin' || currentUser.role === 'admin')})`,
+				`[${getTimestamp()}] [INFO] [ServiceService] Listando serviços do usuário: ${userId} (isAdmin: ${currentUser.role === 'super_admin' || currentUser.role === 'admin'})`,
 			),
 		);
-		if ((currentUser.role === 'super_admin' || currentUser.role === 'admin')) {
+		if (currentUser.role === 'super_admin' || currentUser.role === 'admin') {
 			return serviceRepository.findAllForAdmin();
 		}
 		return serviceRepository.findAllByUser(userId);

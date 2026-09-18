@@ -65,12 +65,12 @@ class SSEManager {
 			emailQueue.getDelayedCount(),
 			emailQueue.getJobCounts('prioritized'),
 		]);
-		return { 
-			waiting: waiting + (prioritizedCounts.prioritized || 0), 
-			active, 
-			completed, 
-			failed, 
-			delayed 
+		return {
+			waiting: waiting + (prioritizedCounts.prioritized || 0),
+			active,
+			completed,
+			failed,
+			delayed,
 		};
 	}
 

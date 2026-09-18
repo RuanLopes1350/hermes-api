@@ -10,16 +10,46 @@ import chalk from 'chalk';
 const usersToCreate = [
 	{ name: 'Admin Master', email: 'admin@hermes.com', password: 'password123', role: 'super_admin' },
 	// Segundo nível de admin — RBAC tem 3 papéis, os seeds antigos só usavam 2.
-	{ name: 'Bruno Tavares', email: 'bruno.tavares@hermes.com', password: 'password123', role: 'admin' },
+	{
+		name: 'Bruno Tavares',
+		email: 'bruno.tavares@hermes.com',
+		password: 'password123',
+		role: 'admin',
+	},
 	{ name: 'Usuário Comum', email: 'user@hermes.com', password: 'password123', role: 'user' },
 	{ name: 'Outro Usuário', email: 'outro@hermes.com', password: 'password123', role: 'user' },
 	{ name: 'Carlos Silva', email: 'carlos.silva@hermes.com', password: 'password123', role: 'user' },
 	{ name: 'Ana Souza', email: 'ana.souza@hermes.com', password: 'password123', role: 'user' },
-	{ name: 'Beatriz Costa', email: 'beatriz.costa@hermes.com', password: 'password123', role: 'user' },
-	{ name: 'Fernanda Santos', email: 'fernanda.santos@hermes.com', password: 'password123', role: 'user' },
-	{ name: 'Marcos Oliveira', email: 'marcos.oliveira@hermes.com', password: 'password123', role: 'user' },
-	{ name: 'Rafael Pereira', email: 'rafael.pereira@hermes.com', password: 'password123', role: 'user' },
-	{ name: 'João Rodrigues', email: 'joao.rodrigues@hermes.com', password: 'password123', role: 'user' },
+	{
+		name: 'Beatriz Costa',
+		email: 'beatriz.costa@hermes.com',
+		password: 'password123',
+		role: 'user',
+	},
+	{
+		name: 'Fernanda Santos',
+		email: 'fernanda.santos@hermes.com',
+		password: 'password123',
+		role: 'user',
+	},
+	{
+		name: 'Marcos Oliveira',
+		email: 'marcos.oliveira@hermes.com',
+		password: 'password123',
+		role: 'user',
+	},
+	{
+		name: 'Rafael Pereira',
+		email: 'rafael.pereira@hermes.com',
+		password: 'password123',
+		role: 'user',
+	},
+	{
+		name: 'João Rodrigues',
+		email: 'joao.rodrigues@hermes.com',
+		password: 'password123',
+		role: 'user',
+	},
 	{
 		name: 'Juliana Almeida',
 		email: 'juliana.almeida@hermes.com',

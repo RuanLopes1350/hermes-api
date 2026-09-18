@@ -339,14 +339,16 @@ class EmailRepository {
 				.returning();
 
 			if (updated) {
-				redisPub.publish(
-					`email-status:${updated.service_id}`,
-					JSON.stringify({
-						emailId: updated.id,
-						status: updated.status,
-						timestamp: new Date().toISOString(),
-					}),
-				).catch(() => {});
+				redisPub
+					.publish(
+						`email-status:${updated.service_id}`,
+						JSON.stringify({
+							emailId: updated.id,
+							status: updated.status,
+							timestamp: new Date().toISOString(),
+						}),
+					)
+					.catch(() => {});
 			}
 
 			return updated ?? null;

@@ -127,10 +127,14 @@ class EmailService {
 		}
 
 		// Suporta tanto Array direto `[...]` quanto objeto `{ emails: [...] }` enviado pelo SDK
-		const incomingData = typeof data === 'object' && data !== null && 'emails' in data && Array.isArray((data as any).emails) 
-			? (data as any).emails 
-			: data;
-			
+		const incomingData =
+			typeof data === 'object' &&
+			data !== null &&
+			'emails' in data &&
+			Array.isArray((data as any).emails)
+				? (data as any).emails
+				: data;
+
 		const parsedDataArray = createBulkEmailSchema.parse(incomingData);
 
 		const serviceData = await serviceRepository.findById(serviceId);
@@ -357,7 +361,10 @@ class EmailService {
 			{
 				emailId: existingEmail.id,
 				serviceId: existingEmail.service_id,
-				variables: typeof existingEmail.variables === 'string' ? JSON.parse(existingEmail.variables) : (existingEmail.variables || {}),
+				variables:
+					typeof existingEmail.variables === 'string'
+						? JSON.parse(existingEmail.variables)
+						: existingEmail.variables || {},
 			},
 			{
 				priority: priorityMap[existingEmail.priority || 'normal'],

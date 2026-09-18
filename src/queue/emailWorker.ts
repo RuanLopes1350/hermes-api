@@ -76,7 +76,9 @@ async function processEmailJob(job: Job<EmailJobPayload>) {
 			);
 
 			if (!credentialData.client_secret || !credentialData.refresh_token) {
-				throw new Error('Credenciais OAuth2 incompletas (Client Secret ou Refresh Token ausentes).');
+				throw new Error(
+					'Credenciais OAuth2 incompletas (Client Secret ou Refresh Token ausentes).',
+				);
 			}
 
 			const clientSecret = decrypt(credentialData.client_secret);

@@ -79,8 +79,18 @@ export async function seedServices(users: any[]) {
 	const membersToInsert = [
 		// E-commerce API (owner: user1, member: user2, carlos)
 		{ id: uuidv4(), service_id: servicesToInsert[0].id, user_id: user1.id, role: 'owner' as const },
-		{ id: uuidv4(), service_id: servicesToInsert[0].id, user_id: user2.id, role: 'member' as const },
-		{ id: uuidv4(), service_id: servicesToInsert[0].id, user_id: carlos.id, role: 'member' as const },
+		{
+			id: uuidv4(),
+			service_id: servicesToInsert[0].id,
+			user_id: user2.id,
+			role: 'member' as const,
+		},
+		{
+			id: uuidv4(),
+			service_id: servicesToInsert[0].id,
+			user_id: carlos.id,
+			role: 'member' as const,
+		},
 
 		// Marketing Newsletter (owner: user1, member: ana)
 		{ id: uuidv4(), service_id: servicesToInsert[1].id, user_id: user1.id, role: 'owner' as const },
@@ -88,26 +98,76 @@ export async function seedServices(users: any[]) {
 
 		// Internal System Admin (owner: admin, member: bruno, user1, user2)
 		{ id: uuidv4(), service_id: servicesToInsert[2].id, user_id: admin.id, role: 'owner' as const },
-		{ id: uuidv4(), service_id: servicesToInsert[2].id, user_id: bruno.id, role: 'member' as const },
-		{ id: uuidv4(), service_id: servicesToInsert[2].id, user_id: user1.id, role: 'member' as const },
-		{ id: uuidv4(), service_id: servicesToInsert[2].id, user_id: user2.id, role: 'member' as const },
+		{
+			id: uuidv4(),
+			service_id: servicesToInsert[2].id,
+			user_id: bruno.id,
+			role: 'member' as const,
+		},
+		{
+			id: uuidv4(),
+			service_id: servicesToInsert[2].id,
+			user_id: user1.id,
+			role: 'member' as const,
+		},
+		{
+			id: uuidv4(),
+			service_id: servicesToInsert[2].id,
+			user_id: user2.id,
+			role: 'member' as const,
+		},
 
 		// CRM Notificações (owner: user2, member: bruno)
 		{ id: uuidv4(), service_id: servicesToInsert[3].id, user_id: user2.id, role: 'owner' as const },
-		{ id: uuidv4(), service_id: servicesToInsert[3].id, user_id: bruno.id, role: 'member' as const },
+		{
+			id: uuidv4(),
+			service_id: servicesToInsert[3].id,
+			user_id: bruno.id,
+			role: 'member' as const,
+		},
 
 		// App Mobile Notifier (owner: carlos, member: beatriz)
-		{ id: uuidv4(), service_id: servicesToInsert[4].id, user_id: carlos.id, role: 'owner' as const },
-		{ id: uuidv4(), service_id: servicesToInsert[4].id, user_id: beatriz.id, role: 'member' as const },
+		{
+			id: uuidv4(),
+			service_id: servicesToInsert[4].id,
+			user_id: carlos.id,
+			role: 'owner' as const,
+		},
+		{
+			id: uuidv4(),
+			service_id: servicesToInsert[4].id,
+			user_id: beatriz.id,
+			role: 'member' as const,
+		},
 
 		// Faturamento Automático (owner: ana, member: fernanda)
 		{ id: uuidv4(), service_id: servicesToInsert[5].id, user_id: ana.id, role: 'owner' as const },
-		{ id: uuidv4(), service_id: servicesToInsert[5].id, user_id: fernanda.id, role: 'member' as const },
+		{
+			id: uuidv4(),
+			service_id: servicesToInsert[5].id,
+			user_id: fernanda.id,
+			role: 'member' as const,
+		},
 
 		// Sistema de RH (owner: beatriz, member: admin, fernanda)
-		{ id: uuidv4(), service_id: servicesToInsert[6].id, user_id: beatriz.id, role: 'owner' as const },
-		{ id: uuidv4(), service_id: servicesToInsert[6].id, user_id: admin.id, role: 'member' as const },
-		{ id: uuidv4(), service_id: servicesToInsert[6].id, user_id: fernanda.id, role: 'member' as const },
+		{
+			id: uuidv4(),
+			service_id: servicesToInsert[6].id,
+			user_id: beatriz.id,
+			role: 'owner' as const,
+		},
+		{
+			id: uuidv4(),
+			service_id: servicesToInsert[6].id,
+			user_id: admin.id,
+			role: 'member' as const,
+		},
+		{
+			id: uuidv4(),
+			service_id: servicesToInsert[6].id,
+			user_id: fernanda.id,
+			role: 'member' as const,
+		},
 
 		// Sistema Legado (Descontinuado) — só o admin, ninguém mais participa
 		{ id: uuidv4(), service_id: servicesToInsert[7].id, user_id: admin.id, role: 'owner' as const },

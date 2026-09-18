@@ -23,11 +23,7 @@ router.post(
 );
 
 // GET STREAM — monitoramento via SSE para clientes do SDK
-router.get(
-	'/emails/stream',
-	requireApiKey,
-	emailController.stream.bind(emailController),
-);
+router.get('/emails/stream', requireApiKey, emailController.stream.bind(emailController));
 
 // GET — autenticação por sessão (para o dashboard visualizar os e-mails)
 router.get('/emails', requireAuth, emailController.listUserEmails.bind(emailController));
