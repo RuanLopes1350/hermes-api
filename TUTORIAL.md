@@ -1,5 +1,7 @@
 # 📚 Tutorial: Como Configurar e Usar o Hermes
 
+> 🇬🇧 **Looking for the English version?** [TUTORIAL.en.md](TUTORIAL.en.md)
+
 Este tutorial é um guia prático passo a passo para colocar a infraestrutura do Hermes em execução, configurar as credenciais, criar templates MJML e efetuar disparos de e-mail de teste.
 
 ---
@@ -15,7 +17,7 @@ Para rodar o ecossistema completo localmente, certifique-se de possuir instalado
 
 ## 🚀 1. Configurando e Subindo a Infraestrutura Base
 
-A forma recomendada de iniciar o Hermes em desenvolvimento usa o **Docker Compose** (dentro de `hermes-api/`) para provisionar o PostgreSQL e o Redis, enquanto a API, o Worker e o Frontend são executados diretamente com Node.js.
+A forma recomendada de iniciar o Hermes em desenvolvimento usa o **Docker Compose** para provisionar o PostgreSQL e o Redis, enquanto a API, o Worker e o Frontend são executados diretamente com Node.js.
 
 ### Passo 1: Configurar as Variáveis de Ambiente da API
 Acesse o diretório da API e crie o arquivo `.env`:
@@ -42,7 +44,8 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/hermes
 REDIS_HOST=localhost
 REDIS_PORT=6379
 
-# Credenciais do Primeiro Usuário Administrador (criado no seed)
+# Credenciais do Primeiro Usuário Administrador
+# (lidas na inicialização do servidor para criar o admin via Better Auth)
 ADMIN_NAME="Administrador Hermes"
 ADMIN_EMAIL=admin@exemplo.com
 ADMIN_PASSWORD=SenhaForteSegura123
@@ -59,15 +62,27 @@ MASTER_KEY=uma_chave_mestra_secreta_AES_256_GCM_aqui
 ### Passo 2: Subir o banco de dados e o Redis
 Ainda dentro de `hermes-api/`, execute:
 ```bash
-npm run db:up
+docker compose up -d db redis
 ```
-Este comando sobe o **Postgres** (porta `5432`) e o **Redis** (porta `6379`) via Docker Compose.
+Este comando sobe apenas o **Postgres** (porta `5432`) e o **Redis** (porta `6379`) via Docker Compose.
 
-### Passo 3: Preparar o banco e criar o usuário admin
+### Passo 3: Aplicar o schema no banco
 ```bash
-npm run db:push   # Aplica o schema (Drizzle)
-npm run seed      # Cria o usuário administrador inicial
+npm run db:push   # Aplica o schema (Drizzle Kit)
 ```
+
+### Passo 4 (Opcional): Popular com dados de demonstração
+
+> **⚠️ ATENÇÃO:** O comando `npm run seed` **apaga todos os dados existentes** (TRUNCATE em cascata) e repopula o banco com usuários, serviços, templates e e-mails de exemplo. Execute apenas se quiser um ambiente de desenvolvimento preenchido. **Só funciona com `NODE_ENV=development`.**
+
+```bash
+npm run seed
+```
+
+Após o seed, os seguintes logins estarão disponíveis (senha: `password123`):
+- **Super Admin:** `admin@hermes.com`
+- **Admin:** `bruno.tavares@hermes.com`
+- **Usuário:** `user@hermes.com`
 
 ---
 
@@ -77,11 +92,11 @@ npm run seed      # Cria o usuário administrador inicial
 
 Abra **dois terminais** dentro de `hermes-api/`:
 
-* **Terminal 1** — Inicia a API REST (porta `3001`):
+* **Terminal 1** - Inicia a API REST (porta configurada em `PORT`):
   ```bash
   npm run dev:api
   ```
-* **Terminal 2** — Inicia o Worker de envio de e-mails:
+* **Terminal 2** - Inicia o Worker de envio de e-mails:
   ```bash
   npm run dev:worker
   ```
@@ -93,8 +108,9 @@ Abra **dois terminais** dentro de `hermes-api/`:
    cd hermes-front
    ```
 2. Crie o arquivo `.env` com a URL da API:
-   ```env
-   NEXT_PUBLIC_API_URL=http://localhost:3001
+   ```bash
+   cp .env.example .env
+   # Edite o .env: NEXT_PUBLIC_API_URL=http://localhost:3001
    ```
 3. Instale as dependências e inicie o servidor Next.js:
    ```bash
@@ -106,10 +122,10 @@ Abra **dois terminais** dentro de `hermes-api/`:
 
 ## 💻 3. Usando a Plataforma (Fluxo Completo)
 
-Com a API rodando na porta `3001` e o frontend na porta `3000`, siga os passos abaixo para configurar seu primeiro disparo.
+Com a API rodando e o frontend na porta `3000`, siga os passos abaixo para configurar seu primeiro disparo.
 
 ### Passo 1: Efetuar Login
-Acesse **`http://localhost:3000`** e faça login com as credenciais administrativas definidas no seu arquivo `.env` (campo `ADMIN_EMAIL` e `ADMIN_PASSWORD`).
+Acesse **`http://localhost:3000`** e faça login com as credenciais administrativas definidas no seu arquivo `.env` (campos `ADMIN_EMAIL` e `ADMIN_PASSWORD`), ou use `admin@hermes.com` / `password123` se rodou o seed.
 
 ### Passo 2: Criar um Serviço (Tenant Namespace)
 1. No menu lateral, acesse **Serviços** e clique em **Novo Serviço**.
@@ -142,6 +158,7 @@ Acesse **`http://localhost:3000`** e faça login com as credenciais administrati
    </mjml>
    ```
 4. Visualize a renderização ao vivo do template no painel e clique em **Salvar**.
+5. Copie o **ID do Template** gerado.
 
 ### Passo 5: Gerar uma API Key
 1. Acesse a aba **API Keys** do seu serviço no painel e clique em **Gerar Nova Chave**.
@@ -154,7 +171,9 @@ Acesse **`http://localhost:3000`** e faça login com as credenciais administrati
 
 ## ✉️ 4. Enviando E-mails Programaticamente
 
-Com o ID do Serviço, o ID do Template e a sua API Key em mãos, sua aplicação externa está pronta para realizar disparos. Existem duas formas recomendadas.
+Com a sua API Key e o ID do Template em mãos, sua aplicação externa está pronta para realizar disparos. Existem duas formas recomendadas.
+
+> **Nota sobre o endpoint:** O envio via API Key usa a rota `POST /api/emails` (sem serviceId no path). O serviceId é identificado automaticamente pela API Key.
 
 ### Opção A: Usando o SDK Oficial (`hermes-client`)
 
@@ -182,7 +201,7 @@ await hermes.email()
 ### Opção B: Chamada Direta via cURL (ou qualquer HTTP client)
 
 ```bash
-curl -X POST http://localhost:3001/api/services/clxxxxxxx0000xxxx/emails \
+curl -X POST http://localhost:3001/api/emails \
   -H "X-API-Key: hm_b5c92a10.e4d3c2b1a0f9e8d7c6b5a4938271605f" \
   -H "Content-Type: application/json" \
   -d '{
@@ -199,13 +218,16 @@ curl -X POST http://localhost:3001/api/services/clxxxxxxx0000xxxx/emails \
 ### Resposta de Sucesso (201 Created)
 ```json
 {
-  "success": true,
+  "error": false,
+  "code": 201,
   "message": "E-mail enfileirado com sucesso!",
   "data": {
     "id": "clemailxxxxxx0000xxxx",
     "status": "pending",
-    "recipient_to": "cliente@email.com"
-  }
+    "recipient_to": "cliente@email.com",
+    "subject": "Confirmação de Registro"
+  },
+  "errors": []
 }
 ```
 

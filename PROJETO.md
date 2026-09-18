@@ -61,13 +61,13 @@ A evolução do antigo projeto monolítico/MongoDB (`mailsender`) para o Hermes 
 
 # **DESCRIÇÃO GERAL**
 
-O Hermes funciona em uma arquitetura de microsserviços. As aplicações integradas (clientes) realizam requisições HTTP REST — diretamente ou através do SDK `hermes-client` — contendo chaves de API, variáveis dinâmicas e o ID do template. A `hermes-api` recebe a requisição, autentica o serviço, registra o e-mail no banco com status `pending` e insere o trabalho em uma fila Redis gerenciada pelo BullMQ. O `hermes-worker` (processo separado dentro de `hermes-api`) consome a fila assincronamente, compila o template com Handlebars, converte a sintaxe MJML para HTML padrão de e-mails e dispara a mensagem através da credencial SMTP configurada.
+O Hermes funciona em uma arquitetura de microsserviços. As aplicações integradas (clientes) realizam requisições HTTP REST - diretamente ou através do SDK `hermes-client` - contendo chaves de API, variáveis dinâmicas e o ID do template. A `hermes-api` recebe a requisição, autentica o serviço, registra o e-mail no banco com status `pending` e insere o trabalho em uma fila Redis gerenciada pelo BullMQ. O `hermes-worker` (processo separado dentro de `hermes-api`) consome a fila assincronamente, compila o template com Handlebars, converte a sintaxe MJML para HTML padrão de e-mails e dispara a mensagem através da credencial SMTP configurada.
 
 ## **USUÁRIOS DO SISTEMA (ATORES)**
 
 * **Administrador Geral (Admin):** Usuário com privilégios de sistema para gerenciar todos os usuários, visualizar métricas globais e auditar toda a atividade do gateway.
 * **Usuário Comum (Gestor de Serviço / Desenvolvedor):** Pode criar seus próprios "Serviços" (aplicativos), configurar credenciais SMTP para cada serviço, gerenciar templates (MJML) e API Keys associadas.
-* **Sistema Cliente (Aplicação Integrada):** Sistema externo que consome a API do Hermes — diretamente via HTTP ou através do SDK `hermes-client` — enviando um token de autorização de API Key (`X-API-Key`) no cabeçalho das requisições para disparar e-mails programaticamente.
+* **Sistema Cliente (Aplicação Integrada):** Sistema externo que consome a API do Hermes - diretamente via HTTP ou através do SDK `hermes-client` - enviando um token de autorização de API Key (`X-API-Key`) no cabeçalho das requisições para disparar e-mails programaticamente.
 
 ## **ARQUITETURA E DIFERENCIAIS**
 
@@ -241,7 +241,7 @@ O sistema Hermes expõe interações distintas para seus três atores principais
 ## **DESCRIÇÃO DOS CASOS DE USO**
 
 * **Aplicações Clientes (Sistemas Externos):**
-  * **Disparar E-mail (POST):** Consome o endpoint HTTP enviando o token de chave de API no cabeçalho e variáveis de conteúdo — diretamente ou via SDK `hermes-client`.
+  * **Disparar E-mail (POST):** Consome o endpoint HTTP enviando o token de chave de API no cabeçalho e variáveis de conteúdo - diretamente ou via SDK `hermes-client`.
   * **Receber Webhook de Rotação:** Recebe e valida o payload HMAC assinado com a nova API Key.
 * **Usuários do Painel (Gestores de Serviço / Desenvolvedores):**
   * **Autenticar no Console:** Login via e-mail e senha ou login social do Google via Better Auth.

@@ -1,12 +1,12 @@
-# 🕊️ Hermes - Sistema de Envio de E-mails Transacionais
+# 🕊️ Hermes - Gateway de E-mails Transacionais
+
+> 🇬🇧 **Looking for the English version?** [README.en.md](README.en.md)
 
 <div align="center">
 
 [![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9+-blue.svg)](https://www.typescriptlang.org/)
 [![Express](https://img.shields.io/badge/Express-5.2+-red.svg)](https://expressjs.com/)
-[![Next.js](https://img.shields.io/badge/Next.js-16.2+-black.svg)](https://nextjs.org/)
-[![React](https://img.shields.io/badge/React-19.0+-blue.svg)](https://react.dev/)
 [![Drizzle ORM](https://img.shields.io/badge/Drizzle--ORM-0.45+-yellowgreen.svg)](https://orm.drizzle.team/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-alpine-red.svg)](https://redis.io/)
@@ -14,7 +14,7 @@
 
 **Plataforma profissional e escalável para envio de e-mails transacionais (Gateway de E-mails) com suporte a múltiplos serviços, templates MJML dinâmicos, fila de processamento assíncrono e painel administrativo moderno.**
 
-[📖 Tutorial](TUTORIAL.md) • [🔐 Autenticação](docs/AUTHENTICATION.md) • [📄 Especificação do Projeto](PROJETO.md) <br>
+[📖 Tutorial](TUTORIAL.md) • [🔐 Autenticação](AUTHENTICATION.md) • [📄 Especificação do Projeto](PROJETO.md) <br>
 [Painel Frontend](https://github.com/RuanLopes1350/hermes-front) • [Pacote Client (NPM)](https://github.com/RuanLopes1350/hermes-client)
 
 </div>
@@ -24,34 +24,39 @@
 ## 📋 Sumário
 
 - [Sobre o Projeto](#-sobre-o-projeto)
-- [Arquitetura do Sistema](#-arquitetura-do-sistema)
+- [Arquitetura do Sistema](#️-arquitetura-do-sistema)
 - [Principais Funcionalidades](#-principais-funcionalidades)
-- [Tecnologias Utilizadas](#-tecnologias-utilizadas)
+- [Tecnologias Utilizadas](#️-tecnologias-utilizadas)
 - [Estrutura do Repositório](#-estrutura-do-repositório)
+- [Variáveis de Ambiente](#-variáveis-de-ambiente)
 - [Como Iniciar (Desenvolvimento Local)](#-como-iniciar-desenvolvimento-local)
+- [Scripts Disponíveis](#-scripts-disponíveis)
 - [Segurança](#-segurança)
 
 ---
 
 ## 🎯 Sobre o Projeto
 
-O **Hermes** é uma evolução de um antigo projeto pessoal, genericamente nomeado de `mailsender`. Ele foi projetado para atuar como um gateway centralizado de e-mails transacionais em infraestruturas organizacionais ou acadêmicas (como no IFRO - Vilhena).
+O **Hermes** é uma evolução de um antigo projeto pessoal (`mailsender`), projetado para atuar como um **gateway centralizado de e-mails transacionais** em infraestruturas organizacionais ou acadêmicas (como no IFRO - Vilhena).
 
-Diferente de soluções legadas e monolíticas, o Hermes separa totalmente o processamento de regras de negócios e envio de e-mails em uma **API em Node.js com TypeScript** conectada a um **Worker assíncrono (BullMQ/Redis)**, expõe uma interface gráfica rica e reativa em **Next.js 16.2 (App Router)** com controle refinado de múltiplos aplicativos (serviços), credenciais SMTP dinâmicas (com suporte a Google OAuth2) e criação de templates MJML em tempo real com Monaco Editor. Adicionalmente, oferece o **`hermes-client`**, um SDK TypeScript oficial para integração simplificada com rotação automática de API Keys.
+Diferente de soluções legadas e monolíticas, o Hermes separa o processamento de regras de negócio e o envio de e-mails em uma **API REST em Node.js/TypeScript** conectada a um **Worker assíncrono (BullMQ/Redis)**. O ecossistema oferece ainda:
+
+- Uma interface administrativa em **Next.js** com controle completo de serviços, credenciais SMTP e templates MJML.
+- O **`hermes-client`**, um SDK TypeScript oficial para integração simplificada, com rotação automática de API Keys.
 
 ---
 
 ## ⚙️ Arquitetura do Sistema
 
-O ecossistema do Hermes é composto por quatro blocos principais:
+O ecossistema Hermes é composto por quatro blocos principais:
 
 ```
  ┌────────────────────────────────────────────────────────────────────┐
  │              APLICAÇÕES CLIENTE (hermes-client SDK)                │
  │     Portal de Notícias, Sistema Acadêmico, Qualquer App Node.js    │
  └────────────────────────────────────┬───────────────────────────────┘
-         (POST /emails + X-API-Key)   │   (Webhook Rotação de Chaves)
-                                      ▼
+         (POST /api/emails + X-API-Key)│  (Webhook Rotação de Chaves)
+                                       ▼
                    ┌─────────────────────────────────────┐
                    │          HERMES FRONTEND            │
                    │   Dashboard Administrativo (React)  │
@@ -88,115 +93,113 @@ O ecossistema do Hermes é composto por quatro blocos principais:
 ## ✨ Principais Funcionalidades
 
 ### 🏢 Multi-Serviço (Multi-Tenant)
-* Isolamento lógico de dados por **Serviços** (namespaces ou aplicativos cadastrados).
-* Cada serviço tem suas próprias chaves de API, templates, logs de e-mails e configurações de segurança independentes.
+- Isolamento lógico de dados por **Serviços** (namespaces ou aplicativos cadastrados).
+- Cada serviço possui chaves de API, templates, logs e configurações completamente independentes.
 
 ### 🔑 API Keys Inteligentes & Seguras
-* Autenticação via header `X-API-Key`.
-* Chaves geradas no formato `hm_[prefixo_publico].[segredo_aleatorio]`.
-* Armazenamento seguro utilizando hash de mão única **Argon2** (resistente a brute-force e timing attacks).
-* Indexação rápida no banco PostgreSQL utilizando o prefixo público de 8 caracteres hexadecimais.
-* **Rotação Automática:** Job diário agendado no BullMQ analisa datas de validade e rotaciona chaves de forma transparente.
-* **Webhooks de Integração:** O Hermes dispara payloads assinados via HMAC SHA-256 informando sistemas integrados sobre rotações de chaves ou expirações iminentes.
+- Autenticação via header `X-API-Key`.
+- Chaves geradas no formato `hm_[prefixo_público].[segredo_aleatório]`.
+- Armazenamento seguro com hash de mão única **Argon2id** (resistente a brute-force e timing attacks).
+- Indexação rápida no PostgreSQL pelo prefixo público de 8 caracteres hexadecimais.
+- **Rotação Automática:** Job diário (BullMQ) analisa datas de validade e rotaciona chaves de forma transparente.
+- **Webhooks Assinados:** Payloads assinados via HMAC SHA-256 notificam sistemas integrados sobre rotações iminentes.
 
-### 📧 SMTP Dinâmico & Autenticação Google OAuth2
-* Suporte a múltiplos remetentes e servidores SMTP.
-* Suporte a autenticação SMTP tradicional (Plain Text com senha ou App Password criptografada por AES-256-GCM).
-* Integração completa com o **Google OAuth2 (Gmail API)**: Permite autorizar e revogar o acesso de envio de e-mails diretamente pela interface administrativa, renovando tokens dinamicamente em background no Worker.
+### 📧 SMTP Dinâmico & Google OAuth2
+- Suporte a múltiplos remetentes e servidores SMTP.
+- Autenticação SMTP tradicional (senha ou App Password criptografada com AES-256-GCM).
+- **Google OAuth2 (Gmail API):** autorize e revogue acesso de envio diretamente pelo painel; tokens renovados dinamicamente em background pelo Worker.
 
-### 🎨 Criação de Templates MJML
-* Criação de e-mails responsivos através de templates escritos em **MJML**.
-* Injeção dinâmica de variáveis em tags MJML utilizando compilação prévia via **Handlebars** (ex: `{{nome}}`).
-* Editor integrado no Frontend utilizando **Monaco Editor** com preview em tempo real.
+### 🎨 Templates MJML com Monaco Editor
+- E-mails 100% responsivos via templates escritos em **MJML**.
+- Injeção dinâmica de variáveis com **Handlebars** (`{{nome}}`).
+- Editor integrado ao Frontend com preview em tempo real.
 
 ### 📦 SDK Oficial (`hermes-client`)
-* Pacote NPM (`@ruanlopes1350/hermes-client`) com **interface fluida (Builder pattern)** para envio de e-mails.
-* **Rotação de API Keys com zero-downtime**: Middlewares plug-and-play para Express, Next.js e Fastify que atualizam a chave automaticamente ao receber webhooks assinados do Hermes.
-* **Storage Adapters** intercambiáveis (`MemoryAdapter`, `EnvAdapter` ou customizados, ex: `RedisAdapter`) para persistir a chave entre reinicializações.
+- Pacote NPM `@ruanlopes1350/hermes-client` com **interface fluida (Builder pattern)**.
+- **Rotação de API Keys com zero-downtime:** middlewares plug-and-play para Express, Next.js e Fastify.
+- **Storage Adapters** intercambiáveis (`MemoryAdapter`, `EnvAdapter` ou customizados) para persistir a chave entre reinicializações.
 
-### ⚡ Tempo Real e Alta Performance
-* **Server-Sent Events (SSE):** O frontend recebe o status dos e-mails processados e métricas do dashboard em tempo real via stream HTTP unidirecional.
-* **Throttling/Debounce Engine:** O Node.js protege seus recursos agrupando enxurradas de eventos do Redis Pub/Sub e despachando pacotes SSE de forma cadenciada (ex: máximo de 2 atualizações por segundo).
-* **Fila com BullMQ:** Controle absoluto sobre retentativas exponenciais, concorrência de workers e atrasos (delay) de jobs.
+### ⚡ Tempo Real & Alta Performance
+- **Server-Sent Events (SSE):** status dos e-mails e métricas do dashboard atualizados em tempo real.
+- **Throttling/Debounce Engine:** agrupamento de eventos do Redis Pub/Sub com despacho cadenciado (máx. 2 atualizações/segundo).
+- **Fila BullMQ:** retentativas exponenciais, concorrência configurável e atrasos de jobs.
+- **Auto-scaling do Worker:** o módulo `scaler.ts` detecta a carga da CPU/RAM e ajusta dinamicamente o número de réplicas do Worker via Docker Compose.
 
 ---
 
 ## 🛠️ Tecnologias Utilizadas
 
-### Backend (`hermes-api` & Worker embutido)
-* **Plataforma:** Node.js (v20+) & TypeScript 5.9
-* **Servidor HTTP:** Express v5.2
-* **ORM:** Drizzle ORM v0.45
-* **Banco de Dados Relacional:** PostgreSQL 15
-* **Fila & Cache:** Redis Alpine & BullMQ v5
-* **Autenticação de Usuários:** Better Auth v1.5
-* **Envio de E-mails:** Nodemailer & Google APIs (OAuth2)
-* **Template Engine:** MJML v4.18 & Handlebars v4.7
-* **Criptografia & Hash:** Argon2 & Node Crypto (AES-256-GCM)
+### Backend (`hermes-api` & Workers)
 
-### Frontend (`hermes-front`)
-* **Framework:** Next.js 16.2 (App Router)
-* **Biblioteca UI:** React 19 & Radix UI Primitives & shadcn/ui
-* **Estilização:** Tailwind CSS v4
-* **Gráficos e Analytics:** ECharts (`echarts-for-react`)
-* **Editor de Código:** Monaco Editor (`@monaco-editor/react`)
-* **Autenticação:** Better Auth (compartilhado com a API)
-
-### SDK Cliente (`hermes-client`)
-* **Pacote NPM:** `@ruanlopes1350/hermes-client` v1.2
-* **Plataforma:** Node.js & Edge Runtimes (TypeScript)
-* **Build:** tsup (ESM + CJS)
-* **Handlers de Webhook:** Express, Next.js App Router, Fastify
+| Tecnologia | Versão | Finalidade |
+|---|---|---|
+| **Node.js** | 20+ | Plataforma de execução |
+| **TypeScript** | 5.9 | Tipagem estática |
+| **Express** | 5.2 | Servidor HTTP / API REST |
+| **Drizzle ORM** | 0.45 | ORM e migrations |
+| **PostgreSQL** | 15 | Banco de dados relacional |
+| **Redis** | Alpine | Fila de jobs e cache |
+| **BullMQ** | 5 | Filas e workers assíncronos |
+| **Better Auth** | 1.5 | Autenticação de usuários |
+| **Nodemailer** | 8 | Envio de e-mails via SMTP |
+| **Google APIs** | - | OAuth2 (Gmail API) |
+| **MJML** | 4.18 | Templates de e-mail responsivos |
+| **Handlebars** | 4.7 | Template engine (variáveis dinâmicas) |
+| **Argon2** | - | Hash de API Keys |
+| **Node Crypto** | - | AES-256-GCM (senhas SMTP) |
 
 ---
 
 ## 📁 Estrutura do Repositório
 
 ```
-hermes/
-├── hermes-api/                 # Backend (API REST + Worker BullMQ)
-│   ├── src/
-│   │   ├── config/             # Configurações do Banco (Drizzle/Postgres) e Redis
-│   │   ├── controller/         # Controladores das rotas Express
-│   │   ├── docs/               # Documentação Swagger (gerada via npm run docs:generate)
-│   │   ├── middlewares/        # Validação de API Keys, rate limits e erros
-│   │   ├── queue/              # Filas e Workers do BullMQ (envio de e-mails e rotação de chaves)
-│   │   ├── repository/         # Queries SQL estruturadas (Drizzle)
-│   │   ├── routes/             # Endpoints da aplicação
-│   │   ├── seeds/              # Seeds para o banco de dados
-│   │   ├── service/            # Lógica de negócio principal
-│   │   ├── types/              # Tipos TypeScript compartilhados
-│   │   ├── utils/              # Auxiliares de criptografia, auth e renderização
-│   │   ├── server.ts           # Ponto de entrada da API
-│   │   └── worker.ts           # Ponto de entrada do Worker
-│   ├── drizzle/                # Migrations geradas pelo Drizzle Kit
-│   ├── docker-compose.yml      # Orquestração local (Postgres + Redis)
-│   ├── dockerfile              # Dockerfile para produção da API/Worker
-│   └── .env.example            # Modelo de variáveis de ambiente
-│
-├── hermes-front/               # Frontend (Painel Administrativo Web)
-│   ├── src/
-│   │   ├── app/                # Páginas e roteamento do Next.js (App Router)
-│   │   ├── components/         # UI Design System (shadcn/Radix/Tailwind v4)
-│   │   ├── constants/          # Constantes globais da aplicação
-│   │   ├── hooks/              # React hooks customizados
-│   │   ├── lib/                # Integração com Better Auth e API Client
-│   │   └── types/              # Tipos TypeScript do frontend
-│   └── dockerfile              # Dockerfile com multi-stage build
-│
-└── hermes-client/              # SDK NPM oficial para aplicações integradas
-    ├── src/
-    │   ├── frameworks/         # Handlers de Webhook (Express, Next.js, Fastify)
-    │   ├── storage/            # Storage Adapters (MemoryAdapter, EnvAdapter)
-    │   ├── client.ts           # HermesClient principal
-    │   ├── builder.ts          # Email Builder (interface fluida)
-    │   ├── bulkEmailBuilder.ts # Bulk Email Builder
-    │   ├── errors.ts           # Classes de erro tipadas
-    │   └── types.ts            # Tipos públicos do SDK
-    └── tsup.config.ts          # Build config (ESM + CJS)
+hermes-api/
+├── src/
+│   ├── config/             # Configurações do banco (Drizzle/Postgres) e Redis
+│   ├── controller/         # Controladores das rotas Express
+│   ├── docs/               # Documentação Swagger (gerada via npm run docs:generate)
+│   ├── middlewares/        # Validação de API Keys, rate limits e tratamento de erros
+│   ├── queue/              # Filas e Workers BullMQ
+│   │   ├── emailQueue.ts   # Definição da fila de e-mails
+│   │   ├── emailWorker.ts  # Worker de envio de e-mails
+│   │   ├── systemWorker.ts # Worker de tarefas do sistema (rotação de chaves, etc.)
+│   │   └── queueEvents.ts  # Listeners de eventos de fila (SSE bridge)
+│   ├── repository/         # Queries SQL estruturadas (Drizzle)
+│   ├── routes/             # Endpoints da aplicação
+│   ├── seeds/              # Seeds de dados para ambiente de desenvolvimento
+│   ├── service/            # Lógica de negócio principal
+│   ├── types/              # Tipos TypeScript compartilhados
+│   ├── utils/              # Auxiliares de criptografia, auth e renderização
+│   ├── server.ts           # Ponto de entrada da API REST
+│   ├── worker.ts           # Ponto de entrada do Email Worker
+│   ├── system.ts           # Ponto de entrada do System Worker (jobs agendados)
+│   └── scaler.ts           # Auto-scaling de workers via Docker Compose
+├── drizzle/                # Migrations geradas pelo Drizzle Kit
+├── docker-compose.yml      # Orquestração completa (Postgres, Redis, API, Worker, Scaler)
+├── dockerfile              # Dockerfile multi-stage para produção
+└── .env.example            # Modelo de variáveis de ambiente
 ```
 
-> **Nota:** O `docker-compose.yml` principal está dentro de `hermes-api/` e provisiona apenas o **banco de dados (Postgres)** e o **Redis**. A API, o Worker e o Frontend são executados em modo de desenvolvimento com `npm run dev:api`, `npm run dev:worker` e `npm run dev` respectivamente, ou via `dockerfile` individual em produção.
+> **Nota:** O `docker-compose.yml` orquestra todos os serviços em produção. Em desenvolvimento local, use `docker compose up -d db redis` para subir apenas o **Postgres** e o **Redis** via Docker, e rode a API e o Worker diretamente com `npm run dev:api` e `npm run dev:worker`.
+
+---
+
+## 🔑 Variáveis de Ambiente
+
+Copie `.env.example` para `.env` e preencha os valores:
+
+| Variável | Descrição | Obrigatória |
+|---|---|---|
+| `PORT` | Porta da API (padrão: `3001`) | Sim |
+| `DATABASE_URL` | Connection string do PostgreSQL | Sim |
+| `REDIS_HOST` / `REDIS_PORT` | Endereço do Redis | Sim |
+| `AUTH_SECRET` | Segredo do Better Auth (32+ chars) | Sim |
+| `AUTH_BASE_URL` | URL base da API (ex: `http://localhost:3001`) | Sim |
+| `AUTH_TRUSTED_ORIGINS` | Origens permitidas para CORS/Auth (ex: `http://localhost:3000`) | Sim |
+| `MASTER_KEY` | Chave mestra AES-256-GCM para criptografia | Sim |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Credenciais do usuário admin (lidas na inicialização do servidor) | Sim |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Credenciais do Google OAuth2 | Opcional |
+| `MAX_WORKERS_OVERRIDE` | Limita manualmente o teto de réplicas do Worker | Opcional |
 
 ---
 
@@ -204,54 +207,87 @@ hermes/
 
 Certifique-se de ter o **Docker**, **Docker Compose** e **Node.js v20+** instalados.
 
-### 1. Configurar Variáveis de Ambiente da API
+### 1. Configurar variáveis de ambiente
 ```bash
 cd hermes-api
 cp .env.example .env
-# Edite o .env com suas credenciais de banco e configurações
+# Edite o .env com suas credenciais
 ```
 
 ### 2. Subir a infraestrutura base (Postgres + Redis)
 ```bash
-# Dentro de hermes-api/:
-npm run db:up
+docker compose up -d db redis
 ```
 
-### 3. Preparar o banco de dados
+### 3. Aplicar o schema e popular o banco
+
+> **⚠️ Atenção:** O comando `npm run seed` **só funciona em `NODE_ENV=development`**. Ele **apaga todos os dados existentes** (TRUNCATE em cascata) e repopula o banco com um conjunto de dados de demonstração (usuários, serviços, templates e e-mails fictícios). Use-o apenas para configurar um ambiente de desenvolvimento do zero.
+
 ```bash
 npm run db:push   # Aplica o schema via Drizzle
-npm run seed      # Cria o usuário administrador inicial
+npm run seed      # Popula o banco com dados de demo (apaga tudo antes!)
 ```
 
-### 4. Iniciar a API e o Worker (terminais separados)
+### 4. Iniciar a API e os Workers (terminais separados)
 ```bash
-# Terminal 1 — API (porta 3001):
+# Terminal 1 - API REST (porta definida em PORT, padrão 3001):
 npm run dev:api
 
-# Terminal 2 — Worker de e-mails:
+# Terminal 2 - Worker de envio de e-mails:
 npm run dev:worker
+
+# Terminal 3 (opcional) - System Worker (jobs agendados: rotação de chaves):
+# npm run start:system-worker
 ```
 
 ### 5. Iniciar o Frontend
 ```bash
 cd ../hermes-front
-# Crie o .env apontando para a API:
-echo "NEXT_PUBLIC_API_URL=http://localhost:3001" > .env
+cp .env.example .env
+# Edite o .env: NEXT_PUBLIC_API_URL=http://localhost:3001
 npm install
 npm run dev
 # Acesse http://localhost:3000
 ```
 
+> Para o fluxo completo de uso da plataforma, consulte o [📖 Tutorial](TUTORIAL.md).
+
+---
+
+## 📜 Scripts Disponíveis
+
+| Script | Descrição |
+|---|---|
+| `npm run dev:api` | Inicia a API em modo watch (tsx) |
+| `npm run dev:worker` | Inicia o Email Worker em modo watch |
+| `npm run build` | Gera docs Swagger e compila TypeScript |
+| `npm run start:api` | Inicia a API compilada (produção) |
+| `npm run start:worker` | Inicia o Worker compilado (produção) |
+| `npm run start:system-worker` | Inicia o System Worker (jobs agendados) |
+| `npm run start:scaler` | Inicia o módulo de auto-scaling |
+| `npm run seed` | Popula banco com dados de demo **[somente development - apaga dados!]** |
+| `npm run db:push` | Aplica o schema no banco (Drizzle) |
+| `npm run db:generate` | Gera migrations a partir do schema |
+| `npm run db:studio` | Abre o Drizzle Studio (UI do banco) |
+| `npm run db:up` | Sobe todos os serviços via Docker Compose |
+| `npm run db:down` | Para e remove os containers |
+| `npm run docs:generate` | Gera o arquivo `swagger-output.json` |
+| `npm run format:fix` | Formata o código com Prettier |
+
 ---
 
 ## 🔒 Segurança
 
-O Hermes implementa as melhores práticas de segurança de dados para microsserviços:
-1. **Criptografia de Senhas de Envio:** As senhas SMTP (Passkeys) e os Tokens de Refresh do Google OAuth2 são armazenados criptografados com o algoritmo simétrico **AES-256-GCM**, utilizando uma chave secreta mestra (`MASTER_KEY`) que nunca deixa o ambiente do servidor.
-2. **Proteção por Hash de API Keys:** Nenhuma chave de API de desenvolvedor é salva em texto limpo. O banco armazena apenas hashes gerados com o **Argon2id**.
-3. **Isolamento de Tenant:** O middleware de rotas garante que uma requisição feita com a API Key de um determinado serviço jamais possa acessar ou usar recursos de outros serviços cadastrados no banco de dados.
-4. **Rate Limiting:** Proteção ativa contra abuso de requisições nos endpoints de e-mail e templates usando o Redis.
-5. **Webhooks Assinados (HMAC SHA-256):** Todos os webhooks de rotação de chaves emitidos pelo Hermes são assinados digitalmente, e o SDK `hermes-client` valida a assinatura automaticamente antes de aceitar uma nova chave.
+O Hermes implementa as melhores práticas de segurança para microsserviços:
+
+1. **Criptografia de Senhas SMTP:** As senhas e tokens de refresh do Google OAuth2 são armazenados com **AES-256-GCM**, usando uma chave mestra (`MASTER_KEY`) que nunca sai do servidor.
+2. **Hash de API Keys:** Nenhuma chave é salva em texto limpo. O banco armazena apenas hashes gerados com **Argon2id**.
+3. **Isolamento de Tenant:** O middleware garante que uma API Key de um serviço jamais acesse recursos de outro serviço.
+4. **Rate Limiting:** Proteção ativa contra abuso nos endpoints de e-mail e templates (Redis-backed).
+5. **Webhooks Assinados (HMAC SHA-256):** Webhooks de rotação de chaves são assinados digitalmente; o SDK `hermes-client` valida a assinatura automaticamente antes de aceitar uma nova chave.
+
+> Para detalhes sobre o sistema de autenticação, consulte [🔐 AUTHENTICATION.md](AUTHENTICATION.md).
 
 ---
+
 Desenvolvido por [Ruan Lopes](https://github.com/RuanLopes1350). Licença ISC.
