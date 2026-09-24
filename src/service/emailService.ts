@@ -8,6 +8,7 @@ import { emailQueue, priorityMap } from '../queue/emailQueue.js';
 import HttpStatusCode from '../utils/helpers/httpStatusCode.js';
 import { DomainError } from '../utils/helpers/domainError.js';
 import { resolveServiceAccess } from '../utils/authz.js';
+import { emailDomainCheck } from '../utils/emailDnsChecker.js';
 
 // Erro de domínio para e-mails
 export class EmailDomainError extends DomainError {
@@ -18,9 +19,7 @@ export class EmailDomainError extends DomainError {
 }
 
 class EmailService {
-	/**
-	 * Enfileira um novo e-mail vinculando-o à credencial carimbada na API Key.
-	 */
+	// Enfileira um novo e-mail vinculando-o à credencial carimbada na API Key.
 	async createEmail(
 		serviceId: string,
 		data: unknown,
@@ -44,11 +43,17 @@ class EmailService {
 
 		const parsedData = createEmailSchema.parse(data);
 
-		// 2. Buscar Serviço para obter prioridade padrão se necessário
+		// 2. Verificar se o e-mail possui um registro MX válido
+		const check = await emailDomainCheck(parsedData.recipient_to);
+		if (!check.valid) {
+			throw new EmailDomainError(check.reason!, 422, 'INVALID_EMAIL_DOMAIN');
+		}
+
+		// 3. Buscar Serviço para obter prioridade padrão se necessário
 		const serviceData = await serviceRepository.findById(serviceId); // apiKey já validou o acesso
 		const defaultPriority = (serviceData?.settings as any)?.defaultPriority || 'medium';
 
-		// 3. Validação de Template
+		// 4. Validação de Template
 		if (parsedData.template_id) {
 			const tmpl = await templateRepository.findById(parsedData.template_id);
 
@@ -62,7 +67,7 @@ class EmailService {
 			}
 		}
 
-		// 4. Persistência
+		// 5. Persistência
 		const finalPriority = parsedData.priority || defaultPriority;
 
 		const newEmail = await emailRepository.create({
@@ -77,7 +82,7 @@ class EmailService {
 			priority: finalPriority,
 		});
 
-		// 5. Despacha para a Fila (BullMQ) com peso numérico
+		// 6. Despacha para a Fila (BullMQ) com peso numérico
 		const bullPriority = (priorityMap as any)[finalPriority] || 5;
 
 		await emailQueue.add(
@@ -103,9 +108,7 @@ class EmailService {
 		return newEmail;
 	}
 
-	/**
-	 * Enfileira um lote de e-mails, processando validações e inserções de uma única vez.
-	 */
+	// Enfileira um lote de e-mails, processando validações e inserções de uma única vez.
 	async createBulkEmails(
 		serviceId: string,
 		data: unknown,
@@ -136,6 +139,26 @@ class EmailService {
 				: data;
 
 		const parsedDataArray = createBulkEmailSchema.parse(incomingData);
+
+		// 2. Validar registros MX dos domínios dos destinatários
+		const recipientEmails = parsedDataArray.map((item) => item.recipient_to);
+		const dnsChecks = await emailDomainCheck(recipientEmails);
+		const invalidEmails = dnsChecks.filter((check) => !check.valid);
+
+		if (invalidEmails.length > 0) {
+			const details = invalidEmails
+				.slice(0, 5)
+				.map((inv) => `"${inv.email}": ${inv.reason || 'domínio sem MX válido'}`)
+				.join('; ');
+			const extra =
+				invalidEmails.length > 5 ? ` e mais ${invalidEmails.length - 5} e-mail(s)` : '';
+
+			throw new EmailDomainError(
+				`Existem e-mails com domínios inválidos no lote (${invalidEmails.length}): ${details}${extra}.`,
+				HttpStatusCode.UNPROCESSABLE_ENTITY.code,
+				'INVALID_EMAIL_DOMAIN',
+			);
+		}
 
 		const serviceData = await serviceRepository.findById(serviceId);
 		const defaultPriority = (serviceData?.settings as any)?.defaultPriority || 'medium';
@@ -318,9 +341,7 @@ class EmailService {
 		return { message: 'E-mail cancelado com sucesso.' };
 	}
 
-	/**
-	 * Tenta reenviar (re-enqueue) um e-mail que falhou (DLQ).
-	 */
+	// Tenta reenviar (re-enqueue) um e-mail que falhou (DLQ).
 	async retryEmail(serviceId: string, emailId: string, user: any) {
 		console.log(
 			chalk.blue.bold(

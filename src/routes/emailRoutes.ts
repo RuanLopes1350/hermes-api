@@ -6,7 +6,7 @@ import { emailApiRateLimiter } from '../middlewares/rateLimitingMiddleware.js';
 
 const router = Router();
 
-// POST — autenticação por API Key (para sistemas externos enviarem e-mails)
+// POST - autenticação por API Key (para sistemas externos enviarem e-mails)
 router.post(
 	'/emails',
 	requireApiKey,
@@ -14,7 +14,7 @@ router.post(
 	emailController.create.bind(emailController),
 );
 
-// POST BULK — envio em lote com autenticação por API Key
+// POST BULK - envio em lote com autenticação por API Key
 router.post(
 	'/emails/bulk',
 	requireApiKey,
@@ -22,10 +22,10 @@ router.post(
 	emailController.createBulk.bind(emailController),
 );
 
-// GET STREAM — monitoramento via SSE para clientes do SDK
+// GET STREAM - monitoramento via SSE para clientes do SDK
 router.get('/emails/stream', requireApiKey, emailController.stream.bind(emailController));
 
-// GET — autenticação por sessão (para o dashboard visualizar os e-mails)
+// GET - autenticação por sessão (para o dashboard visualizar os e-mails)
 router.get('/emails', requireAuth, emailController.listUserEmails.bind(emailController));
 router.get('/emails/export', requireAuth, emailController.exportCsv.bind(emailController));
 router.get('/services/:serviceId/emails', requireAuth, emailController.list.bind(emailController));
@@ -35,14 +35,14 @@ router.get(
 	emailController.getOne.bind(emailController),
 );
 
-// DELETE — autenticação por sessão (cancelar um e-mail pendente)
+// DELETE - autenticação por sessão (cancelar um e-mail pendente)
 router.delete(
 	'/services/:serviceId/emails/:id',
 	requireAuth,
 	emailController.cancel.bind(emailController),
 );
 
-// POST — autenticação por sessão (repetir um e-mail falho - DLQ)
+// POST - autenticação por sessão (repetir um e-mail falho - DLQ)
 router.post(
 	'/services/:serviceId/emails/:id/retry',
 	requireAuth,

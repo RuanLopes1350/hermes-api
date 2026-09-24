@@ -5,6 +5,7 @@ import emailService from '../service/emailService.js';
 import streamService from '../service/streamService.js';
 import CommonResponse from '../utils/helpers/commonResponse.js';
 import { EmailListFilters } from '../repository/emailRepository.js';
+import { emailDomainCheck } from '../utils/emailDnsChecker.js';
 
 // Extrai limit/offset da querystring com os mesmos limites de sempre (máx. 100 por página).
 function parsePagination(req: Request) {
@@ -156,7 +157,7 @@ class EmailController {
 		}
 	}
 
-	// GET /api/emails/export — CSV com todos os resultados do filtro atual (sem paginação)
+	// GET /api/emails/export - CSV com todos os resultados do filtro atual (sem paginação)
 	async exportCsv(req: Request, res: Response, next: NextFunction) {
 		console.log(chalk.cyan(`[${getTimestamp()}] [GET] /api/emails/export`));
 		try {
