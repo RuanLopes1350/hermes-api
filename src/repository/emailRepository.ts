@@ -41,8 +41,8 @@ class EmailRepository {
 		return conditions;
 	}
 
-	// Registra um novo e-mail na fila com status 'pending'.
-	// O envio real será feito pelo worker BullMQ.
+	// Registra um novo e-mail na fila.
+	// Suporta inserção de e-mails já com status 'failed' (ex: falha de DNS).
 	async create(data: {
 		serviceId: string;
 		credentialId?: string;
@@ -53,9 +53,11 @@ class EmailRepository {
 		variables?: Record<string, any>;
 		scheduledAt?: Date;
 		priority?: 'high' | 'medium' | 'low';
+		status?: 'pending' | 'failed';
+		errorLog?: string | null;
 	}) {
 		console.log(
-			chalk.magenta(`[${getTimestamp()}] [DB] [EmailRepository] Inserindo e-mail na fila...`),
+			chalk.magenta(`[${getTimestamp()}] [DB] [EmailRepository] Inserindo e-mail no banco...`),
 		);
 		try {
 			const [newEmail] = await db
@@ -71,6 +73,8 @@ class EmailRepository {
 					variables: data.variables ?? {},
 					scheduled_at: data.scheduledAt,
 					priority: data.priority ?? 'medium',
+					...(data.status ? { status: data.status as any } : {}),
+					...(data.errorLog !== undefined ? { error_log: data.errorLog } : {}),
 				})
 				.returning();
 			return newEmail;
@@ -79,7 +83,9 @@ class EmailRepository {
 		}
 	}
 
-	// Registra uma lista de e-mails de uma vez (Bulk Insert)
+	// Registra uma lista de e-mails de uma vez (Bulk Insert).
+	// Suporta inserção de e-mails já com status 'failed' e error_log definido
+	// (ex: e-mails rejeitados pela verificação MX de domínio antes de enfileirar).
 	async createBulk(
 		items: {
 			serviceId: string;
@@ -91,6 +97,8 @@ class EmailRepository {
 			variables?: Record<string, any>;
 			scheduledAt?: Date;
 			priority?: 'high' | 'medium' | 'low';
+			status?: 'pending' | 'failed';
+			errorLog?: string | null;
 		}[],
 	) {
 		console.log(
@@ -110,6 +118,8 @@ class EmailRepository {
 				variables: item.variables ?? {},
 				scheduled_at: item.scheduledAt,
 				priority: item.priority ?? 'medium',
+				...(item.status ? { status: item.status as any } : {}),
+				...(item.errorLog !== undefined ? { error_log: item.errorLog } : {}),
 			}));
 
 			const newEmails = await db.insert(email).values(valuesToInsert).returning();

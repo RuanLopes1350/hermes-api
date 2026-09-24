@@ -45,16 +45,13 @@ class EmailService {
 
 		// 2. Verificar se o e-mail possui um registro MX válido
 		const check = await emailDomainCheck(parsedData.recipient_to);
-		if (!check.valid) {
-			throw new EmailDomainError(check.reason!, 422, 'INVALID_EMAIL_DOMAIN');
-		}
 
 		// 3. Buscar Serviço para obter prioridade padrão se necessário
 		const serviceData = await serviceRepository.findById(serviceId); // apiKey já validou o acesso
 		const defaultPriority = (serviceData?.settings as any)?.defaultPriority || 'medium';
 
-		// 4. Validação de Template
-		if (parsedData.template_id) {
+		// 4. Validação de Template (apenas se o e-mail não for ser descartado por MX)
+		if (check.valid && parsedData.template_id) {
 			const tmpl = await templateRepository.findById(parsedData.template_id);
 
 			// Se o template não existir OU (não for global E não pertencer a este serviço)
@@ -80,31 +77,42 @@ class EmailService {
 			variables: parsedData.variables,
 			scheduledAt: parsedData.scheduled_at ? new Date(parsedData.scheduled_at) : undefined,
 			priority: finalPriority,
+			status: check.valid ? 'pending' : 'failed',
+			errorLog: check.valid ? undefined : check.reason || 'Domínio sem registros MX válidos.',
 		});
 
-		// 6. Despacha para a Fila (BullMQ) com peso numérico
-		const bullPriority = (priorityMap as any)[finalPriority] || 5;
+		// 6. Despacha para a Fila (BullMQ) se for válido
+		if (check.valid) {
+			const bullPriority = (priorityMap as any)[finalPriority] || 5;
 
-		await emailQueue.add(
-			'sendEmailJob',
-			{
-				emailId: newEmail.id,
-				serviceId: serviceId,
-				variables: parsedData.variables,
-			},
-			{
-				priority: bullPriority,
-				delay: parsedData.scheduled_at
-					? Math.max(0, new Date(parsedData.scheduled_at).getTime() - Date.now())
-					: 0,
-			},
-		);
+			await emailQueue.add(
+				'sendEmailJob',
+				{
+					emailId: newEmail.id,
+					serviceId: serviceId,
+					variables: parsedData.variables,
+				},
+				{
+					priority: bullPriority,
+					delay: parsedData.scheduled_at
+						? Math.max(0, new Date(parsedData.scheduled_at).getTime() - Date.now())
+						: 0,
+				},
+			);
 
-		console.log(
-			chalk.green.bold(
-				`[${getTimestamp()}] [SUCCESS] [EmailService] E-mail enfileirado: ${newEmail.id} (Prioridade: ${finalPriority})`,
-			),
-		);
+			console.log(
+				chalk.green.bold(
+					`[${getTimestamp()}] [SUCCESS] [EmailService] E-mail enfileirado: ${newEmail.id} (Prioridade: ${finalPriority})`,
+				),
+			);
+		} else {
+			console.warn(
+				chalk.yellow(
+					`[${getTimestamp()}] [WARN] [EmailService] E-mail ${newEmail.id} registrado como 'failed' por domínio inválido: ${check.reason}`,
+				),
+			);
+		}
+
 		return newEmail;
 	}
 
@@ -140,32 +148,45 @@ class EmailService {
 
 		const parsedDataArray = createBulkEmailSchema.parse(incomingData);
 
-		// 2. Validar registros MX dos domínios dos destinatários
+		// 2. Verificar registros MX dos domínios dos destinatários
 		const recipientEmails = parsedDataArray.map((item) => item.recipient_to);
 		const dnsChecks = await emailDomainCheck(recipientEmails);
-		const invalidEmails = dnsChecks.filter((check) => !check.valid);
 
-		if (invalidEmails.length > 0) {
-			const details = invalidEmails
+		// Indexa o resultado DNS por e-mail para consulta rápida
+		const dnsCheckByEmail = new Map(dnsChecks.map((c) => [c.email.toLowerCase(), c]));
+
+		// Separa os e-mails em válidos (vão para a fila) e inválidos (registrados como 'failed')
+		const validItems = parsedDataArray.filter(
+			(item) => dnsCheckByEmail.get(item.recipient_to.toLowerCase())?.valid !== false,
+		);
+		const invalidItems = parsedDataArray.filter(
+			(item) => dnsCheckByEmail.get(item.recipient_to.toLowerCase())?.valid === false,
+		);
+
+		if (invalidItems.length > 0) {
+			const preview = invalidItems
 				.slice(0, 5)
-				.map((inv) => `"${inv.email}": ${inv.reason || 'domínio sem MX válido'}`)
+				.map((inv) => {
+					const reason =
+						dnsCheckByEmail.get(inv.recipient_to.toLowerCase())?.reason || 'domínio sem MX válido';
+					return `"${inv.recipient_to}": ${reason}`;
+				})
 				.join('; ');
-			const extra =
-				invalidEmails.length > 5 ? ` e mais ${invalidEmails.length - 5} e-mail(s)` : '';
+			const extra = invalidItems.length > 5 ? ` e mais ${invalidItems.length - 5}` : '';
 
-			throw new EmailDomainError(
-				`Existem e-mails com domínios inválidos no lote (${invalidEmails.length}): ${details}${extra}.`,
-				HttpStatusCode.UNPROCESSABLE_ENTITY.code,
-				'INVALID_EMAIL_DOMAIN',
+			console.warn(
+				chalk.yellow(
+					`[${getTimestamp()}] [WARN] [EmailService] ${invalidItems.length} e-mail(s) com domínio inválido serão registrados como 'failed': ${preview}${extra}`,
+				),
 			);
 		}
 
 		const serviceData = await serviceRepository.findById(serviceId);
 		const defaultPriority = (serviceData?.settings as any)?.defaultPriority || 'medium';
 
-		// Otimização: validar apenas os templates únicos usados no lote
+		// Otimização: validar apenas os templates únicos usados nos e-mails válidos
 		const uniqueTemplateIds = [
-			...new Set(parsedDataArray.map((item) => item.template_id).filter(Boolean)),
+			...new Set(validItems.map((item) => item.template_id).filter(Boolean)),
 		] as string[];
 
 		if (uniqueTemplateIds.length > 0) {
@@ -183,10 +204,26 @@ class EmailService {
 			}
 		}
 
-		// Preparar array para inserção no banco
-		const dbPayload = parsedDataArray.map((parsedData) => {
-			const finalPriority = parsedData.priority || defaultPriority;
-			return {
+		// Monta o payload de todos os e-mails: inválidos como 'failed', válidos como 'pending'
+		const dbPayload = [
+			// E-mails com domínio inválido: persiste com status 'failed' e motivo no error_log
+			...invalidItems.map((parsedData) => {
+				const dnsResult = dnsCheckByEmail.get(parsedData.recipient_to.toLowerCase());
+				return {
+					serviceId: serviceId,
+					credentialId: apiKeyCredentialId,
+					templateId: parsedData.template_id,
+					subject: parsedData.subject,
+					recipientTo: parsedData.recipient_to,
+					body: parsedData.body,
+					variables: parsedData.variables,
+					priority: (parsedData.priority || defaultPriority) as 'high' | 'medium' | 'low',
+					status: 'failed' as const,
+					errorLog: dnsResult?.reason || 'Domínio sem registros MX válidos.',
+				};
+			}),
+			// E-mails com domínio válido: entra na fila normalmente
+			...validItems.map((parsedData) => ({
 				serviceId: serviceId,
 				credentialId: apiKeyCredentialId,
 				templateId: parsedData.template_id,
@@ -195,15 +232,16 @@ class EmailService {
 				body: parsedData.body,
 				variables: parsedData.variables,
 				scheduledAt: parsedData.scheduled_at ? new Date(parsedData.scheduled_at) : undefined,
-				priority: finalPriority,
-			};
-		});
+				priority: (parsedData.priority || defaultPriority) as 'high' | 'medium' | 'low',
+			})),
+		];
 
-		// 1. Insert em massa no PostgreSQL (muito mais rápido que N queries)
+		// 1. Insert em massa no PostgreSQL (todos de uma vez)
 		const newEmails = await emailRepository.createBulk(dbPayload);
 
-		// 2. Preparar jobs para o Redis / BullMQ
-		const bullJobs = newEmails.map((dbEmail) => {
+		// 2. Preparar jobs apenas dos e-mails válidos (que ficaram com status 'pending')
+		const pendingEmails = newEmails.filter((e) => e.status === 'pending');
+		const bullJobs = pendingEmails.map((dbEmail) => {
 			const bullPriority = (priorityMap as any)[dbEmail.priority] || 5;
 			return {
 				name: 'sendEmailJob',
@@ -221,17 +259,20 @@ class EmailService {
 			};
 		});
 
-		// 3. Insert em massa no Redis
-		await emailQueue.addBulk(bullJobs);
+		// 3. Insert em massa no Redis (apenas os pendentes)
+		if (bullJobs.length > 0) {
+			await emailQueue.addBulk(bullJobs);
+		}
 
 		console.log(
 			chalk.green.bold(
-				`[${getTimestamp()}] [SUCCESS] [EmailService] ${newEmails.length} e-mails enfileirados no Bulk (Redis).`,
+				`[${getTimestamp()}] [SUCCESS] [EmailService] Bulk concluído: ${pendingEmails.length} enfileirado(s), ${invalidItems.length} registrado(s) como 'failed'.`,
 			),
 		);
 
 		return {
-			message: `${newEmails.length} e-mails enfileirados com sucesso.`,
+			message:
+				`${pendingEmails.length} e-mail(s) enfileirado(s). ${invalidItems.length > 0 ? `${invalidItems.length} rejeitado(s) por domínio inválido.` : ''}`.trim(),
 			emails: newEmails.map((e) => ({ id: e.id, recipient_to: e.recipient_to, status: e.status })),
 		};
 	}
